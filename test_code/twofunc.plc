@@ -1,0 +1,7 @@
+func A(x) {
+    return x+1;
+}
+func B(i,j) {
+    return i+j;
+}
+println B(A(4), A(7));

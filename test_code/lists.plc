@@ -1,0 +1,17 @@
+let x := [5, 11, 13, 24]; 
+println x;
+append (x, 12);
+println x[2];
+let y := x[1];
+println y;
+x[1] := 420;
+println x;
+let i := 0;
+while (i < size(x)) {
+    print x[i];
+    print " ";
+    i := i + 1;
+}
+println " ";
+println !empty(x);
+println empty(x);

@@ -1,0 +1,8 @@
+func g() {
+    return 420;
+}
+func f() {
+    g();
+    return 1;
+}
+println f();

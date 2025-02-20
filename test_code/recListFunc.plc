@@ -1,0 +1,11 @@
+func printThatThang(x,i) {
+    if (i < size(x)) {
+        print x[i];
+        print " ";
+        printThatThang(x, i+1);
+    } else {
+        println "tuah!";
+    }
+}
+let t := ["oh", "ye of", 420, 69, "sir fades"];
+println printThatThang(t, 0);

@@ -1,0 +1,53 @@
+func makeTree(x) {
+    println "one tree, coming in hot.";
+    return [x, nil, nil];
+}
+
+func key(x) {
+    return x[0];
+}
+
+func left(x) {
+    return x[1];
+}
+
+func right(x) {
+    return x[2];
+}
+
+func preorder(tree) {
+    if (tree != nil) {
+        preorder(left(tree));
+        print key(tree);
+        print " ";
+        preorder(right(tree));
+    }
+}
+
+func insert(tree, x) {
+    if (tree == nil) {
+        return makeTree(x);
+    }
+    print x;
+    print " < ";
+    print key(tree);
+    println "?";
+    if (x < key(tree)) {
+        println "left.";
+        tree[1] := insert(left(tree), x);
+    } else {
+        println "right.";
+        tree[2] := insert(right(tree), x);
+    }
+    return tree;
+}
+let qtip := [7,6,31,24,4,9,21,5,104,3,11,2];
+let root := nil;
+let i := 0;
+while (i < size(qtip)) {
+    root := insert(root, qtip[i]);
+    i := i + 1;
+}
+preorder(root);
+println " ";
+println root;

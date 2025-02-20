@@ -1,0 +1,17 @@
+let x := 3;
+let y := 10;
+if (1 < 2) { 
+    println "display this if one is less than two";
+} else {
+    println "One is not less than two";
+}
+if (x < y) {
+  println x;
+} else {
+  println y;
+}
+while (x < y) {
+  println (y-x);
+  x := x + 1;
+}
+println -2+3*4;

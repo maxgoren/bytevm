@@ -1,0 +1,6 @@
+let x := 13;
+func printIt() {
+    println x;
+    return 0;
+}
+printIt();

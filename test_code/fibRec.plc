@@ -1,0 +1,21 @@
+func fib(x, cache) {
+	if (x < 2) {
+		return 1;
+	}
+	if (x < size(cache)) {
+		if (cache[x] == 0) {
+			cache[x] := fib(x-1, cache) + fib(x-2, cache);
+		}
+	} else {
+		append(cache, fib(x-1, cache)+fib(x-2, cache));
+	}
+	return cache[x];
+}
+let cache := [0,1];
+let i := 0;
+while (i < 50) {
+	print i;
+	print " ";
+	println fib(i, cache);
+	i := i + 1;
+}
