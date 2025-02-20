@@ -5,11 +5,9 @@
 using namespace std;
 
 enum VMInstr {
-    vm_iadd, vm_isub, vm_imul, vm_idiv, vm_imod,
-    vm_fadd, vm_fsub, vm_fmul, vm_fdiv,
-    vm_itof, vm_neg, vm_not, vm_fneg, vm_fnot,
-    vm_iequ, vm_ineq, vm_ilt, vm_igt, vm_ilte, vm_igte,
-    vm_fequ, vm_fneq, vm_flt, vm_fgt, vm_flte, vm_fgte,
+    vm_add, vm_sub, vm_mul, vm_div, vm_mod,
+    vm_itof, vm_neg, vm_not,
+    vm_equ, vm_neq, vm_lt, vm_gt, vm_lte, vm_gte,
     vm_iconst, vm_cconst, vm_sconst, vm_fconst, 
     vm_sconcat, vm_mklist, vm_apndlist, vm_listsize,
     vm_def, vm_call, vm_ret, vm_closure,
@@ -25,10 +23,8 @@ enum VMInstr {
 
 string VMInstrStr[] = {
     "iadd", "isub", "imul", "idiv", "imod",
-    "fadd", "fsub", "fmul", "fdiv",
-    "itof", "neg", "not", "fneg", "fnot",
+    "itof", "neg", "not", 
     "iequ", "ineq", "ilt", "igt", "ilte", "igte",
-    "fequ", "fneq", "flt", "fgt", "flte", "fgte",
     "iconst", "cconst", "sconst", "fconst", 
     "sconcat", "mklist", "apndlist", "listsize",
     ".def","call", "ret", "closure",

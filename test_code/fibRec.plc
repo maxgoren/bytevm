@@ -14,8 +14,7 @@ func fib(x, cache) {
 let cache := [0,1];
 let i := 0;
 while (i < 50) {
-	print i;
-	print " ";
+	print i + ": ";
 	println fib(i, cache);
 	i := i + 1;
 }

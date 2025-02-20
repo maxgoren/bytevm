@@ -77,7 +77,7 @@ class CodeGen {
                     genCode(node->child[0]);
                     emit(vm_listsize);
                     emit(vm_iconst, makeInt(0));
-                    emit(vm_iequ);
+                    emit(vm_equ);
                 } break;
                 default:
                     break;
@@ -117,11 +117,11 @@ class CodeGen {
                     genExpr(node->child[0], false);
                     genExpr(node->child[1], false);
                     switch (node->token.symbol) {
-                        case TK_ADD: emit(vm_iadd); break;
-                        case TK_SUB: emit(vm_isub); break;
-                        case TK_MUL: emit(vm_imul); break;
-                        case TK_DIV: emit(vm_idiv); break;
-                        case TK_MOD: emit(vm_imod); break;
+                        case TK_ADD: emit(vm_add); break;
+                        case TK_SUB: emit(vm_sub); break;
+                        case TK_MUL: emit(vm_mul); break;
+                        case TK_DIV: emit(vm_div); break;
+                        case TK_MOD: emit(vm_mod); break;
                         default: break;
                     }
                 } break;
@@ -134,12 +134,12 @@ class CodeGen {
                     genExpr(node->child[0], false);
                     genExpr(node->child[1], false);
                     switch (node->token.symbol) {
-                        case TK_LT: emit(vm_ilt); break;
-                        case TK_GT: emit(vm_igt); break;
-                        case TK_LTE: emit(vm_ilte); break;
-                        case TK_GTE: emit(vm_igte); break;
-                        case TK_EQU: emit(vm_iequ); break;
-                        case TK_NEQ: emit(vm_ineq); break;
+                        case TK_LT: emit(vm_lt); break;
+                        case TK_GT: emit(vm_gt); break;
+                        case TK_LTE: emit(vm_lte); break;
+                        case TK_GTE: emit(vm_gte); break;
+                        case TK_EQU: emit(vm_equ); break;
+                        case TK_NEQ: emit(vm_neq); break;
                         default:
                             break;
                     }

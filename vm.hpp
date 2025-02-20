@@ -71,64 +71,6 @@ class VM {
         ByteCodeInstruction& fetchInstruction() {
             return codePage[ip++];
         }
-        void performIntegerOperation(ByteCodeInstruction& current) {
-            switch (current.instr) {
-                case vm_iadd: {
-                    operands[sp-2].data.intval = operands[sp-2].data.intval + operands[sp-1].data.intval;
-                    //operands[sp-2] = add(operands[sp-2], operands[sp-1]);
-                    sp--;
-                } break;
-                case vm_isub: { 
-                    operands[sp-2].data.intval = operands[sp-2].data.intval - operands[sp-1].data.intval;
-                    sp--;
-                } break;
-                case vm_imul: { 
-                    operands[sp-2].data.intval = operands[sp-2].data.intval * operands[sp-1].data.intval;
-                    sp--;
-                } break;
-                case vm_idiv: { 
-                    operands[sp-2].data.intval = operands[sp-2].data.intval / operands[sp-1].data.intval;
-                    sp--;
-                } break;
-                case vm_imod: { 
-                    operands[sp-2].data.intval = operands[sp-2].data.intval % operands[sp-1].data.intval;
-                    sp--;
-                } break;
-                case vm_itof: { 
-                    int tmp = operands[sp-1].data.intval; 
-                    operands[sp-1].type = AS_REAL;
-                    operands[sp-1].data.realval = (double)tmp;
-                } break;
-                case vm_neg: {
-                    operands[sp-1].data.intval = -operands[sp-1].data.intval;
-                } break;
-                case vm_ilt: { 
-                    operands[sp-2] = makeBool(operands[sp-2].data.intval < operands[sp-1].data.intval);
-                    sp--;
-                } break;
-                case vm_igt: { 
-                    operands[sp-2] = gt(operands[sp-2], operands[sp-1]);
-                    sp--;
-                } break;
-                case vm_ilte: { 
-                    operands[sp-2] = lte(operands[sp-2],operands[sp-1]);
-                    sp--;
-                } break;
-                case vm_igte: { 
-                    operands[sp-2] = gte(operands[sp-2], operands[sp-1]);
-                    sp--;
-                } break;
-                case vm_iequ: { 
-                    operands[sp-2] = equ(operands[sp-2], operands[sp-1]);
-                    sp--;
-                } break;
-                case vm_ineq: {
-                    operands[sp-2] = neq(operands[sp-2], operands[sp-1]);
-                    sp--;
-                } break;
-                default: break;
-            }
-        }
         void doCall(int functionIndex) {
             Function* func = constPool.get(functionIndex).data.funcval;
             pushStackFrame(func, ip);
@@ -211,16 +153,70 @@ class VM {
                     case vm_sconst:
                     case vm_fconst:
                     case vm_iconst: { operands[sp++] = current.operand; } break;
-                    case vm_iadd:
-                    case vm_isub:
-                    case vm_imul:
-                    case vm_idiv:
-                    case vm_neg:
-                    case vm_ilt: 
-                    case vm_igt: 
-                    case vm_iequ: 
-                    case vm_ineq:
-                    case vm_itof: { performIntegerOperation(current); } break;
+                    case vm_add: {
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = add(l, r);
+                    } break;
+                    case vm_sub: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = sub(l, r);
+                    } break;
+                    case vm_mul: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = mul(l, r);
+                    } break;
+                    case vm_div: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = div(l, r);
+                    } break;
+                    case vm_mod: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = mod(l, r);
+                    } break;
+                    case vm_itof: { 
+                        int tmp = operands[sp-1].data.intval; 
+                        operands[sp-1].type = AS_REAL;
+                        operands[sp-1].data.realval = (double)tmp;
+                    } break;
+                    case vm_neg: {
+                        operands[sp-1].data.intval = -operands[sp-1].data.intval;
+                    } break;
+                    case vm_lt: { 
+                        Object r = operands[sp-1];
+                        Object l = operands[sp-2];
+                        sp -= 2;
+                        operands[sp++] = lt(l, r);
+                    } break;
+                    case vm_gt: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = gt(l, r);
+                    } break;
+                    case vm_lte: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = lte(l, r);
+                    } break;
+                    case vm_gte: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = gte(l, r);
+                    } break;
+                    case vm_equ: { 
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = equ(l, r);
+                    } break;
+                    case vm_neq: {
+                        Object r = operands[--sp];
+                        Object l = operands[--sp];
+                        operands[sp++] = neq(l, r);
+                    } break;
                     case vm_not: {
                         operands[sp-1].data.boolval = !(operands[sp-1].data.boolval);
                     } break;

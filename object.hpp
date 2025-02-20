@@ -126,6 +126,11 @@ Object makeInt(int val) {
 
 Object makeReal(double val) {
     Object m;
+    if (std::floor(val) == val) {
+        m.type = AS_INT;
+        m.data.intval = (int)val;
+        return m;
+    }
     m.type = AS_REAL;
     m.data.realval = val;
     return m;
@@ -184,26 +189,22 @@ double getPrimitive(Object obj) {
 
 Object add(Object lhs, Object rhs) {
     if (typeOf(lhs) == AS_STRING || typeOf(rhs) == AS_STRING) {
-        cout<<"String a doo";
         return makeString(toString(lhs)+toString(rhs));
     }
-    cout<<"weird."<<endl;
     double lhn = getPrimitive(lhs);
-    double rhn = getPrimitive(rhn);
-    cout<<toString(lhs)<<" and "<<toString(rhs)<<endl;
-    cout<<lhn<<" + "<<rhn<<endl;
+    double rhn = getPrimitive(rhs);
     return makeReal(lhn+rhn);
 }
 
 Object sub(Object lhs, Object rhs) {
     double lhn = getPrimitive(lhs);
-    double rhn = getPrimitive(rhn);
+    double rhn = getPrimitive(rhs);
     return makeReal(lhn-rhn);
 }
 
 Object div(Object lhs, Object rhs) {
     double lhn = getPrimitive(lhs);
-    double rhn = getPrimitive(rhn);
+    double rhn = getPrimitive(rhs);
     if (rhn == 0.0) {
         cout<<"Error: divide by 0"<<endl;
         return makeReal(0);
@@ -213,13 +214,13 @@ Object div(Object lhs, Object rhs) {
 
 Object mod(Object lhs, Object rhs) {
     double lhn = getPrimitive(lhs);
-    double rhn = getPrimitive(rhn);
+    double rhn = getPrimitive(rhs);
     return makeInt((int)lhn % (int)rhn);
 }
 
 Object mul(Object lhs, Object rhs) {
     double lhn = getPrimitive(lhs);
-    double rhn = getPrimitive(rhn);
+    double rhn = getPrimitive(rhs);
     return makeNumber(lhn*rhn);
 } 
 
