@@ -76,7 +76,7 @@ class CodeGen {
                 case TK_EMPTY: {
                     genCode(node->child[0]);
                     emit(vm_listsize);
-                    emit(vm_iconst, makeInt(0));
+                    emit(vm_const, makeInt(0));
                     emit(vm_equ);
                 } break;
                 default:
@@ -96,16 +96,16 @@ class CodeGen {
                 case CONST_EXPR: {
                         switch (node->token.symbol) {
                             case TK_NUM: 
-                                emit(vm_iconst, makeInt(atoi(node->token.strval.data())));
+                                emit(vm_const, makeInt(atoi(node->token.strval.data())));
                                 break;
                             case TK_STR:
-                                emit(vm_sconst, makeString(node->token.strval));
+                                emit(vm_const, makeString(node->token.strval));
                                 break;
                             case TK_TRUE:
-                                emit(vm_iconst, makeBool(true));
+                                emit(vm_const, makeBool(true));
                                 break;
                             case TK_FALSE:
-                                emit(vm_iconst, makeBool(false));
+                                emit(vm_const, makeBool(false));
                             case TK_NIL:
                                 emit(vm_null);
                                 break;
@@ -124,11 +124,6 @@ class CodeGen {
                         case TK_MOD: emit(vm_mod); break;
                         default: break;
                     }
-                } break;
-                case CONCAT_EXPR: {
-                    genExpr(node->child[0], false);
-                    genExpr(node->child[1], false);
-                    emit(vm_sconcat);
                 } break;
                 case RELOP_EXPR: {
                     genExpr(node->child[0], false);
@@ -230,7 +225,7 @@ class CodeGen {
                     genExpr(node->child[0], false);
                     emit(vm_print);
                     if (node->token.symbol == TK_PRINTLN) {
-                        emit(vm_sconst, makeString("\n"));
+                        emit(vm_const, makeString("\n"));
                         emit(vm_print);
                     }
                 } break;

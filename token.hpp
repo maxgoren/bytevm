@@ -5,7 +5,7 @@ using namespace std;
 
 enum Symbol {
     TK_ID, TK_NUM, TK_STR, TK_TRUE, TK_FALSE, TK_NIL, TK_LP, TK_RP, TK_LC, TK_RC, TK_LB, TK_RB,
-    TK_ADD, TK_MUL, TK_SUB, TK_DIV, TK_MOD, TK_POW, TK_SQRT,
+    TK_ADD, TK_MUL, TK_SUB, TK_DIV, TK_MOD, TK_POW, TK_SQRT, TK_POST_INC, TK_POST_DEC,
     TK_LT, TK_GT, TK_LTE, TK_GTE, TK_EQU, TK_NEQ, TK_NOT,
     TK_PERIOD, TK_COMA, TK_SEMI, TK_COLON, 
     TK_ASSIGN, TK_QUOTE, TK_FUNC, TK_PRODUCES, TK_STRUCT, TK_NEW, TK_FREE,
@@ -17,7 +17,7 @@ enum Symbol {
 
 string symbolStr[] = {
     "TK_ID", "TK_NUM", "TK_STR", "TK_TRUE", "TK_FALSE", "TK_NIL", "TK_LP", "TK_RP", "TK_LC", "TK_RC", "TK_LB", "TK_RB",
-    "TK_ADD", "TK_MUL", "TK_SUB", "TK_DIV", "TK_MOD", "TK_POW", "TK_SQRT",
+    "TK_ADD", "TK_MUL", "TK_SUB", "TK_DIV", "TK_MOD", "TK_POW", "TK_SQRT", "TK_POST_INC", "TK_POST_DEC",
     "TK_LT", "TK_GT", "TK_LTE", "TK_GTE", "TK_EQU", "TK_NEQ", "TK_NOT",
     "TK_PERIOD", "TK_COMA", "TK_SEMI", "TK_COLON",
     "TK_ASSIGN", "TK_QUOTE", "TK_PRODUCES", "TK_STRUCT", "TK_NEW", "TK_FREE",

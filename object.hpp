@@ -85,9 +85,45 @@ List* appendList(List* list, Object obj) {
     return list;
 }
 
+bool listEmpty(List* list) {
+    return list->count == 0;
+}
+
 int listSize(List* list) {
     return list == nullptr ? -1:list->count;
 }
+
+List* pushList(List* list, Object obj) {
+    ListNode* t = new ListNode(obj, list->head);
+    if (listEmpty(list)) {
+        list->tail = t;
+    }
+    list->head = t;
+    list->count += 1;
+    return list;
+}
+
+List* updateListAt(List* list, int index, Object obj) {
+    int i = 0;
+    ListNode* it = list->head; 
+    while (it != nullptr && i < index) {
+        it = it->next;
+        i++;
+    }
+    it->info = obj;
+    return list;
+}
+
+ListNode* getListItemAt(List* list, int index) {
+    int i = 0;
+    ListNode* it = list->head; 
+    while (it != nullptr && i < index) {
+        it = it->next;
+        i++;
+    }
+    return it;
+}
+
 
 string toString(Object obj) {
     string str;

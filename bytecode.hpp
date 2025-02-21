@@ -6,10 +6,9 @@ using namespace std;
 
 enum VMInstr {
     vm_add, vm_sub, vm_mul, vm_div, vm_mod,
-    vm_itof, vm_neg, vm_not,
+    vm_neg, vm_not,
     vm_equ, vm_neq, vm_lt, vm_gt, vm_lte, vm_gte,
-    vm_iconst, vm_cconst, vm_sconst, vm_fconst, 
-    vm_sconcat, vm_mklist, vm_apndlist, vm_listsize,
+    vm_const, vm_mklist, vm_apndlist, vm_listsize,
     vm_def, vm_call, vm_ret, vm_closure,
     vm_br, vm_brt, vm_brf, 
     vm_gload, vm_glda, vm_gstore, 
@@ -22,11 +21,10 @@ enum VMInstr {
 };
 
 string VMInstrStr[] = {
-    "iadd", "isub", "imul", "idiv", "imod",
-    "itof", "neg", "not", 
-    "iequ", "ineq", "ilt", "igt", "ilte", "igte",
-    "iconst", "cconst", "sconst", "fconst", 
-    "sconcat", "mklist", "apndlist", "listsize",
+    "add", "sub", "mul", "div", "mod",
+    "neg", "not", 
+    "equ", "neq", "lt", "gt", "lte", "gte",
+    "const", "mklist", "apndlist", "listsize",
     ".def","call", "ret", "closure",
     "br", "brt", "brf",
     "gload", "glda", "gstore", 
@@ -45,5 +43,9 @@ struct ByteCodeInstruction {
     Object operand;
     ByteCodeInstruction(VMInstr in = vm_halt, Object obj = makeNil()) : instr(in), operand(obj) { }
 };
+
+void printInstruction(ByteCodeInstruction& bci) {
+    cout<<"["<<VMInstrStr[bci.instr]<<", "<<bci.operand<<" ]"<<endl;
+}
 
 #endif
