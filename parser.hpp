@@ -7,6 +7,7 @@ using namespace std;
 
 class Parser {
     private:
+        bool inListConstructor;
         TokenStream ts;
         Token& current();
         Token& advance();
@@ -14,11 +15,13 @@ class Parser {
         bool expect(Symbol sym);
         bool match(Symbol sym);
         astnode* paramList();
+        astnode* argList();
         astnode* primary();
         astnode* val();
         astnode* unopExpression();
         astnode* factor();
         astnode* term();
+        astnode* range();
         astnode* relOpExpression();
         astnode* equOpExpression();
         astnode* expression();
@@ -32,7 +35,7 @@ class Parser {
 };
 
 Parser::Parser() {
-
+    inListConstructor = false;
 }
 
 astnode* Parser::parse(TokenStream& tokens) {
@@ -98,6 +101,19 @@ astnode* Parser::paramList() {
     return node;
 }
 
+astnode* Parser::argList() {
+    match(TK_LET);
+    astnode* node = expression();
+    astnode* c = node;
+    while (expect(TK_COMA)) {
+        match(TK_COMA);
+        match(TK_LET);
+        c->next = expression();
+        c = c->next;
+    }
+    return node;
+}
+
 astnode* Parser::makeBlock() {
     match(TK_LC);
     astnode* node = statementList();
@@ -130,7 +146,7 @@ astnode* Parser::statement() {
             node->token = current();
             match(TK_ID);
             match(TK_LP);
-            node->child[0] = paramList();
+            node->child[0] = argList();
             match(TK_RP);
             node->child[1] = makeBlock();
         } break;
@@ -159,15 +175,20 @@ astnode* Parser::statement() {
             match(TK_RP);
             node->child[1] = makeBlock();
         } break;
+        case TK_LC: {
+            node = makeStmtNode(BLOCK_STMT, current());
+            node->child[0] = makeBlock();
+        } break;
+        case TK_EOI: break;
+        case TK_RC: break;
         case TK_LB:
         case TK_APPEND:
         case TK_LP:
         case TK_NUM:
         case TK_ID:
+        default:
             node = makeStmtNode(EXPR_STMT, current());
             node->child[0] = expression();
-            break;
-        default:
             break;
     }
     return node;
@@ -245,13 +266,42 @@ astnode* Parser::unopExpression() {
         match(TK_NOT);
         node->child[0] = unopExpression();
     } else {
-        node = val();
+        node = range();
+    }
+    return node;
+}
+
+astnode* Parser::range() {
+    astnode* node = val();
+    if (expect(TK_RANGE)) {
+        astnode* t = makeExprNode(RANGE_EXPR, current());
+        match(TK_RANGE);
+        t->child[0] = node;
+        t->child[1] = val();
+        node = t;
+    }
+    if (expect(TK_PIPE)) {
+        astnode* t = makeExprNode(ZF_EXPR, current());
+        match(TK_PIPE);
+        t->child[0] = node;
+        t->child[1] = val();
+        if (expect(TK_PIPE)) {
+            match(TK_PIPE);
+            t->child[2] = val();
+        }
+        node = t;
     }
     return node;
 }
 
 astnode* Parser::val() {
     astnode* node = primary();
+    if (expect(TK_POST_DEC) || expect(TK_POST_INC)) {
+        astnode* t = makeExprNode(UNOP_EXPR, current());
+        match(lookahead());
+        t->child[0] = node;
+        node = t;
+    }
     while (expect(TK_LB)) {
         astnode* t = makeExprNode(SUBSCRIPT_EXPR, current());
         match(TK_LB);
@@ -259,6 +309,13 @@ astnode* Parser::val() {
         t->child[1] = expression();
         node = t;
         match(TK_RB);
+    }
+    while (expect(TK_POW)) {
+        astnode* t = makeExprNode(BINOP_EXPR, current());
+        match(TK_POW);
+        t->child[0] = node;
+        t->child[1] = expression();
+        node = t;
     }
     if (expect(TK_LP)) {
         astnode* t = makeExprNode(FUNC_EXPR, current());
@@ -272,7 +329,7 @@ astnode* Parser::val() {
 }
 
 astnode* Parser::primary() {
-    astnode* node;
+    astnode* node = nullptr;
     if (expect(TK_NUM) || expect(TK_STR) || expect(TK_TRUE) || expect(TK_FALSE) || expect(TK_NIL)) {
         node = makeExprNode(CONST_EXPR, current());
         match(lookahead());
@@ -286,9 +343,11 @@ astnode* Parser::primary() {
     } else if (expect(TK_LB)) {
         node = makeExprNode(LIST_EXPR, current());
         match(TK_LB);
+        inListConstructor = true;
         node->child[0] = paramList();
+        inListConstructor = false;
         match(TK_RB);
-    } else if (expect(TK_APPEND) || expect(TK_PUSH)) {
+    } else if (expect(TK_APPEND) || expect(TK_PUSH) || expect(TK_MAP) || expect(TK_FILTER) || expect(TK_REDUCE)) {
         node = makeExprNode(LIST_EXPR, current());
         match(lookahead());
         match(TK_LP);
@@ -296,12 +355,35 @@ astnode* Parser::primary() {
         match(TK_COMA);
         node->child[1] = expression();
         match(TK_RP);
-    } else if (expect(TK_SIZE) || expect(TK_EMPTY)) {
+    } else if (expect(TK_SIZE) || expect(TK_EMPTY) || expect(TK_FIRST) || expect(TK_REST)) {
         node = makeExprNode(LIST_EXPR, current());
         match(lookahead());
         match(TK_LP);
         node->child[0] = expression();
         match(TK_RP);
+    } else if (expect(TK_MATCHRE)) {
+        node = makeExprNode(REG_EXPR, current());
+        match(TK_MATCHRE);
+        match(TK_LP);
+        node->child[0] = expression();
+        match(TK_COMA);
+        node->child[1] = expression();
+        match(TK_RP);
+    } else if (expect(TK_LAMBDA)) {
+        node = makeExprNode(LAMBDA_EXPR, current());
+        match(TK_LAMBDA);
+        node->child[0] = paramList();
+        match(TK_RP);
+        if (expect(TK_PRODUCES)) {
+            match(TK_PRODUCES);
+            node->child[1] = expression();
+        } else {
+            node->child[1] = makeBlock();
+        }
+    } else if (expect(TK_BLESS)) {
+        node = makeExprNode(BLESS_EXPR, current());
+        match(TK_BLESS);
+        node->child[0] = makeBlock();
     }
     return node;
 }

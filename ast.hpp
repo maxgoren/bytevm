@@ -1,6 +1,9 @@
 #ifndef ast_hpp
 #define ast_hpp
 #include "token.hpp"
+#include <list>
+using namespace std;
+
 
 const int MAX_CHILD = 3;
 
@@ -9,11 +12,17 @@ enum NodeKind {
 };
 
 enum ExprType {
-    ID_EXPR, CONST_EXPR, UNOP_EXPR, BINOP_EXPR, RELOP_EXPR, CONCAT_EXPR, FUNC_EXPR, ASSIGN_EXPR, SUBSCRIPT_EXPR, LIST_EXPR
+    ID_EXPR, CONST_EXPR, 
+    UNOP_EXPR, BINOP_EXPR, RELOP_EXPR, 
+    REG_EXPR, LAMBDA_EXPR, FUNC_EXPR, BLESS_EXPR,
+    ASSIGN_EXPR, SUBSCRIPT_EXPR, RANGE_EXPR,
+    LIST_EXPR, ZF_EXPR
 };
 
 enum StmtType {
-    PRINT_STMT, EXPR_STMT, IF_STMT, WHILE_STMT, LET_STMT, FUNC_DEF_STMT, STRUCT_DEF_STMT, RETURN_STMT
+    PRINT_STMT, EXPR_STMT, BLOCK_STMT, 
+    IF_STMT, WHILE_STMT, LET_STMT, 
+    FUNC_DEF_STMT, STRUCT_DEF_STMT, RETURN_STMT
 };
 
 struct astnode {
@@ -35,6 +44,8 @@ struct astnode {
     }
 };
 
+
+
 void preorder(astnode* expr, int d) {
     if (expr != nullptr) {
         for (int i = 0; i < d; i++) cout<<" ";
@@ -48,9 +59,9 @@ void preorder(astnode* expr, int d) {
                     case RELOP_EXPR: cout<<"[relop expr]"; break;
                     case FUNC_EXPR:  cout<<"[func expr]"; break;
                     case ASSIGN_EXPR: cout<<"[assign expr]"; break;
-                    case CONCAT_EXPR: cout<<"[concat expr]"; break;
                     case LIST_EXPR: cout<<"[list expr]"; break;
                     case SUBSCRIPT_EXPR: cout<<"[subscript expr]"; break;
+                    case RANGE_EXPR: cout<<"[range expr]"; break;
                     default:
                         break;
                 } break;
@@ -68,7 +79,12 @@ void preorder(astnode* expr, int d) {
                     case FUNC_DEF_STMT:
                         cout<<"[def stmt]";
                         break;
-                    case IF_STMT: break;
+                    case IF_STMT: 
+                        cout<<"[if stmt]";
+                        break;
+                    case STRUCT_DEF_STMT:
+                        cout<<"[struct definition stmt]";
+                        break;
                     default:
                         break;
                 }

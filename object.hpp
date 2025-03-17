@@ -2,15 +2,10 @@
 #define object_hpp
 #include <iostream>
 #include <cmath>
+#include <unordered_map>
+#include "ast.hpp"
 using namespace std;
 
-struct Function {
-    string name;
-    int args;
-    int locals;
-    int addr;
-    Function(string n, int ag, int l, int adr) : name(n), args(ag), locals(l), addr(adr) { }
-};
 
 enum StoreAs {
     AS_INT, AS_REAL, AS_BOOL, AS_CHAR, AS_STRING, AS_FUNC, AS_CLOSURE, AS_LIST, AS_MAP, AS_NULL
@@ -18,35 +13,32 @@ enum StoreAs {
 
 struct List;
 struct Closure;
+struct Function;
+
+struct GCObject;
 
 struct Object {
     StoreAs type;
+    bool marked;
     union {
         int intval;
         double realval;
         bool boolval;
         char charval;
-        string* strval;
-        Function* funcval;
-        List* listval;
-        Closure* closureval;
+        GCObject* gcobj;
     } data;
-    Object(List* val) { type = AS_LIST; data.listval = val; }
-    Object(Function* val) { type = AS_FUNC; data.funcval = val; }
-    Object(string* val) { type = AS_STRING; data.strval = val; }
-    Object(Closure* val) { type = AS_CLOSURE; data.closureval = val; }
-    Object(char val) { type = AS_CHAR; data.charval = val; }
-    Object(double val) { type = AS_REAL; data.realval = val; }
-    Object(bool val) { type = AS_BOOL; data.boolval = val; }
-    Object(int val) { type = AS_INT; data.intval = val; }
-    Object() { type = AS_NULL; data.intval = 0; }
+    Object(char val) { type = AS_CHAR; data.charval = val; marked = false; }
+    Object(double val) { type = AS_REAL; data.realval = val; marked = false; }
+    Object(bool val) { type = AS_BOOL; data.boolval = val; marked = false; }
+    Object(int val) { type = AS_INT; data.intval = val; marked = false; }
+    Object() { type = AS_NULL; data.intval = 0; marked = false; }
     Object(const Object& obj) {
         type = obj.type;
         switch (type) {
-            case AS_LIST: data.listval = obj.data.listval; break;
-            case AS_STRING: data.strval = obj.data.strval; break;
-            case AS_FUNC: data.funcval = obj.data.funcval; break;
-            case AS_CLOSURE: data.closureval = obj.data.closureval; break;
+            case AS_LIST: data.gcobj = obj.data.gcobj; break;
+            case AS_STRING: data.gcobj = obj.data.gcobj; break;
+            case AS_FUNC: data.gcobj = obj.data.gcobj; break;
+            case AS_CLOSURE: data.gcobj = obj.data.gcobj; break;
             case AS_CHAR: data.charval = obj.data.charval; break;
             case AS_BOOL: data.boolval = obj.data.boolval; break;
             case AS_INT: data.intval = obj.data.intval; break;
@@ -54,6 +46,22 @@ struct Object {
             default:
                 break;
         }
+    }
+};
+
+struct Function {
+    string name;
+    int args;
+    int locals;
+    int addr;
+    astnode* body;
+    astnode* params;
+    unordered_map<string, Object> freeVars;
+    Function(string n, int ag, int l, int adr) : name(n), args(ag), locals(l), addr(adr) { }
+    Function(astnode* par, astnode* code) : params(par), body(code) { }
+    Function() {
+        args = 0; locals = 0; addr = 0;
+        name = "nil";
     }
 };
 
@@ -72,6 +80,34 @@ struct List {
         count = 0;
     }
 };
+
+enum GC_TYPE {
+    GC_LIST, GC_STRING, GC_FUNC
+};
+
+struct GCObject {
+    GC_TYPE type;
+    bool marked;
+    union {
+        string* strval;
+        Function* funcval;
+        List* listval;
+        Closure* closureval;
+    };
+    GCObject(string* s) : strval(s), marked(false), type(GC_STRING) { }
+    GCObject(string s) : strval(new string(s)), marked(false), type(GC_STRING) { }
+    GCObject(List* l) : listval(l), marked(false), type(GC_LIST) { }
+    GCObject(Function* f) : funcval(f), marked(false), type(GC_FUNC) { }
+    GCObject(Closure* c) : closureval(c), marked(false), type(GC_FUNC) { }
+};
+
+void printGCObject(GCObject* x) {
+    switch (x->type) {
+        case GC_FUNC:   cout<<x->funcval->name<<endl; break;
+        case GC_LIST:   cout<<"(list)"<<endl; break;
+        case GC_STRING: cout<<*x->strval<<endl; break;
+    }
+}
 
 List* appendList(List* list, Object obj) {
     ListNode* t = new ListNode(obj, nullptr);
@@ -131,12 +167,12 @@ string toString(Object obj) {
         case AS_INT:    str = to_string(obj.data.intval); break;
         case AS_REAL:   str = to_string(obj.data.realval); break;
         case AS_BOOL:   str = obj.data.boolval ? "true":"false"; break;
-        case AS_STRING: str = *(obj.data.strval); break;
-        case AS_FUNC:   str = obj.data.funcval->name; break;
+        case AS_STRING: str = *(obj.data.gcobj->strval); break;
+        case AS_FUNC:   str = obj.data.gcobj->funcval->name; break;
         case AS_NULL:   str = "(null)"; break;
         case AS_LIST: {
             str = "[ ";
-            for (ListNode* it = obj.data.listval->head; it != nullptr; it = it->next) {
+            for (ListNode* it = obj.data.gcobj->listval->head; it != nullptr; it = it->next) {
                 str += toString(it->info);
                 if (it->next != nullptr) 
                     str += ", ";
@@ -153,51 +189,9 @@ ostream& operator<<(ostream& os, const Object& obj) {
     return os;
 }
 
-Object makeInt(int val) {
-    Object m;
-    m.type = AS_INT;
-    m.data.intval = val;
-    return m;
-}
-
-Object makeReal(double val) {
-    Object m;
-    if (std::floor(val) == val) {
-        m.type = AS_INT;
-        m.data.intval = (int)val;
-        return m;
-    }
-    m.type = AS_REAL;
-    m.data.realval = val;
-    return m;
-}
-
-Object makeBool(bool val) {
-    return Object(val);
-}
-
-Object makeChar(char val) {
-    return Object(val);
-}
-
-Object makeString(string val) {
-    return Object(new string(val));
-}
-
-Object makeNil() {
-    return Object();
-}
-
-Object makeList(List* list) {
-    return Object(list);
-}
 
 StoreAs typeOf(Object obj) {
     return obj.type;
-}
-
-Object makeNumber(double val) {
-    return makeReal(val);
 }
 
 bool compareOrdinal(Object obj) {
@@ -223,10 +217,38 @@ double getPrimitive(Object obj) {
     return a;
 }
 
-Object add(Object lhs, Object rhs) {
-    if (typeOf(lhs) == AS_STRING || typeOf(rhs) == AS_STRING) {
-        return makeString(toString(lhs)+toString(rhs));
+Object makeInt(int val) {
+    Object m;
+    m.type = AS_INT;
+    m.data.intval = val;
+    return m;
+}
+
+Object makeReal(double val) {
+    Object m;
+    if (std::floor(val) == val) {
+        m.type = AS_INT;
+        m.data.intval = (int)val;
+        return m;
     }
+    m.type = AS_REAL;
+    m.data.realval = val;
+    return m;
+}
+
+Object makeNumber(double val) {
+    return makeReal(val);
+}
+
+Object makeBool(bool val) {
+    return Object(val);
+}
+
+Object makeNil() {
+    return Object();
+}
+
+Object add(Object lhs, Object rhs) {
     double lhn = getPrimitive(lhs);
     double rhn = getPrimitive(rhs);
     return makeReal(lhn+rhn);
@@ -259,6 +281,12 @@ Object mul(Object lhs, Object rhs) {
     double rhn = getPrimitive(rhs);
     return makeNumber(lhn*rhn);
 } 
+
+Object pow(Object lhs, Object rhs) {
+    double lhn = getPrimitive(lhs);
+    double rhn = getPrimitive(rhs);
+    return makeNumber(pow(lhn, rhn));
+}
 
 Object neg(Object lhs) {
     double val = getPrimitive(lhs);

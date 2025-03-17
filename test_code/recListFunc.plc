@@ -1,4 +1,4 @@
-func printThatThang(x,i) {
+def printThatThang(let x,let i) {
     if (i < size(x)) {
         print x[i];
         print " ";
@@ -6,6 +6,7 @@ func printThatThang(x,i) {
     } else {
         println "tuah!";
     }
+    return i;
 }
 let t := ["oh", "ye of", 420, 69, "sir fades"];
 println printThatThang(t, 0);

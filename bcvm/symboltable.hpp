@@ -1,7 +1,7 @@
 #ifndef symboltable_hpp
 #define symboltable_hpp
 #include <iostream>
-#include "object.hpp"
+#include "../object.hpp"
 using namespace std;
 
 const int MAX_LOCALS = 255;
@@ -23,18 +23,19 @@ struct StructVar {
 
 
 enum VarType {
-    LOCALVAR, FUNCVAR, STRUCTVAR, EMPTY
+    GLOBALVAR, LOCALVAR, FUNCVAR, STRUCTVAR, EMPTY
 };
 
 struct STEntry {
     string name;
+    int depth;
     int location;
     VarType type;
     union {
         FuncVar* funcVar;
         StructVar* structVar;
     };
-    STEntry() : type(EMPTY) { name = "nil"; }
+    STEntry() : type(EMPTY), depth(0) { name = "nil"; }
 };
 
 struct Scope {
@@ -67,9 +68,11 @@ struct Scope {
 class SymbolTable {
     private:
         Scope* scope;
+        Scope* global;
     public:
         SymbolTable() {
-            scope = new Scope();
+            global = new Scope();
+            scope = global;
         }
         int numLocals() {
             return scope->num_locals;
@@ -79,17 +82,23 @@ class SymbolTable {
         }
         STEntry get(string name) {
             Scope* x = scope;
+            int depth = 0;
             cout<<"Searching For: "<<name;
-            while (x != nullptr) {
+            while (x != global) {
                 cout<<" . ";
                 int loc = x->find(name);
                 if (loc != -1) {
-                    cout<<"Found!"<<endl;
+                    cout<<"Found at depth: "<<depth<<"!"<<endl;
                     return x->get(loc);
                 }
+                depth++;
                 x = x->enclosing;
             }
-            cout<<"Not found!"<<endl;
+            if (global->find(name) != -1) {
+                cout<<" Found in global scope"<<endl;
+                return global->get(global->find(name));
+            }
+            cout<<"Not found."<<endl;
             return STEntry();
         }
         void openFunctionScope(string name) {

@@ -1,8 +1,7 @@
 func g() {
     return 420;
 }
-func f() {
-    g();
-    return 1;
+func f(i) {
+    return i + g();
 }
-println f();
+println f(1);

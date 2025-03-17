@@ -36,24 +36,7 @@ private:
         int lineNo() {
             return lpos;
         }
-        char get() {
-            if (spos >= buff.length() && lpos >= lines.size()) {
-                    return eosChar; 
-            }
-            return buff[spos];
-        }
-        char advance() {
-            spos++;
-            if (spos >= buff.length()) {
-                lpos++;
-                if (lpos >= lines.size()) {
-                    return eosChar;
-                }
-                spos = 0;
-                buff = lines[lpos];
-            }
-            return buff[spos];
-        }
+        
         bool rewind() {
             if (spos-1 < 0 && lpos-1 < 0)
                 return eosChar;
@@ -74,12 +57,29 @@ private:
             while (ifile.good()) {
                 getline(ifile, buff);
                 lines.push_back(buff);
-                //cout<<lines.size()<<": "<<buff<<endl;
             }
             ifile.close();
             spos = 0; 
             lpos = 0;
             buff = lines[lpos];
+        }
+        char get() {
+            if (spos >= buff.length() && lpos >= lines.size()) {
+                    return eosChar; 
+            }
+            return buff[spos];
+        }
+        char advance() {
+            spos++;
+            if (spos >= buff.length()) {
+                lpos++;
+                if (lpos >= lines.size()) {
+                    return eosChar;
+                }
+                spos = 0;
+                buff = lines[lpos];
+            }
+            return buff[spos];
         }
 };
 

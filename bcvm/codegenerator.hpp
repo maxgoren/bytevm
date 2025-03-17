@@ -3,23 +3,26 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
-#include "ast.hpp"
+#include "../ast.hpp"
+#include "../object.hpp"
+#include "../stringbuffer.hpp"
+#include "../tokenstream.hpp"
 #include "bytecode.hpp"
-#include "object.hpp"
-#include "stringbuffer.hpp"
-#include "tokenstream.hpp"
+#include "constant_pool.hpp"
 #include "symboltable.hpp"
 using namespace std;
 
 
 class CodeGen {
     private:
+        Allocator* alloc;
         ConstantPool* constPool;
         SymbolTable st;
         vector<ByteCodeInstruction> code;
         int codeIndex;
         int highCI;
         int labelnum;
+        int scopeDepth;
         void emit(VMInstr instr) {
             emit(instr, makeInt(0));
         }
@@ -29,14 +32,14 @@ class CodeGen {
         }
         string emitLabel() {
             string label = "LBL" + to_string(labelnum++);
-            emit(vm_label, makeString(label));
+            emit(vm_label, alloc->makeString(label));
             return label;
         }
         int getLabelAddr(string label) {
             int i = 0;
             while (i < highCI) {
                 if (code[i].instr == vm_label) {
-                    if (*(code[i].operand.data.strval) == label)
+                    if (*(code[i].operand.data.gcobj->strval) == label)
                         return i;
                 }
                 i++;
@@ -54,6 +57,17 @@ class CodeGen {
         }
         void restoreEmit() {
             codeIndex = highCI;
+        }
+        void openScope(string name) {
+            scopeDepth++;
+            st.openFunctionScope(name);
+        }
+        void closeScope() {
+            scopeDepth--;
+            st.closeScope();
+        }
+        bool scopeIsGlobal() {
+            return scopeDepth == 0;
         }
         void genListExpr(astnode* node) {
             switch (node->token.symbol) {
@@ -87,10 +101,23 @@ class CodeGen {
         void genExpr(astnode* node, bool isAddr) {
             switch (node->type.expr) {
                 case ID_EXPR: {
+                    STEntry entry = st.get(node->token.strval);
                     if (isSub) {
-                        emit(vm_load, makeInt(st.get(node->token.strval).location));
+                        emit(vm_load, makeInt(entry.location));
                     } else {
-                        emit(isAddr ? vm_lda:vm_load, makeInt(st.get(node->token.strval).location));
+                        if (isAddr) {
+                            if (entry.type == GLOBALVAR) {
+                                emit(vm_glda, makeInt(entry.location));
+                            } else {
+                                emit(vm_lda, makeInt(entry.location));                                
+                            }
+                        } else {
+                            if (entry.type == GLOBALVAR) {
+                                emit(vm_gload, makeInt(entry.location));
+                            } else {
+                                emit(vm_load, makeInt(entry.location));
+                            }
+                        }
                     }
                 }   break;
                 case CONST_EXPR: {
@@ -99,7 +126,7 @@ class CodeGen {
                                 emit(vm_const, makeInt(atoi(node->token.strval.data())));
                                 break;
                             case TK_STR:
-                                emit(vm_const, makeString(node->token.strval));
+                                emit(vm_const, alloc->makeString(node->token.strval));
                                 break;
                             case TK_TRUE:
                                 emit(vm_const, makeBool(true));
@@ -168,7 +195,11 @@ class CodeGen {
                     if (isSub) {
                         emit(vm_fstore);
                     } else {
-                        emit(vm_store);
+                        if (scopeIsGlobal()) {
+                            emit(vm_gstore);
+                        } else {
+                            emit(vm_store);
+                        }
                     }
                 } break;
                 case FUNC_EXPR: {
@@ -207,27 +238,39 @@ class CodeGen {
         }
         void genFunctionDefinition(astnode* node) {
             int s1 = skipEmit(2);
-            st.openFunctionScope(node->token.strval);
+            openScope(node->token.strval);
             emit(vm_def, makeInt(st.get(node->token.strval).location));
             genCode(node->child[1]);
-            st.closeScope();
+            closeScope();
             emit(vm_ret);
             string end_label = emitLabel();
             backUpEmit(s1);
             emit(vm_br, makeInt(getLabelAddr(end_label)));
             string entrance = emitLabel();
-            constPool->get(st.get(node->token.strval).location).data.funcval->addr = getLabelAddr(entrance);
+            constPool->get(st.get(node->token.strval).location).data.gcobj->funcval->addr = getLabelAddr(entrance);
+            restoreEmit();
+        }
+        void genBlock(astnode* node) {
+            int s1 = skipEmit(1);
+            genCode(node->child[0]);
+            emit(vm_close_scope);
+            int c1 = skipEmit(0);
+            backUpEmit(s1);
+            emit(vm_open_scope, makeInt(c1));
             restoreEmit();
         }
         void genStmt(astnode* node) {
             switch (node->type.stmt) {
                 case PRINT_STMT: {
                     genExpr(node->child[0], false);
-                    emit(vm_print);
                     if (node->token.symbol == TK_PRINTLN) {
-                        emit(vm_const, makeString("\n"));
+                        emit(vm_println);
+                    } else {
                         emit(vm_print);
                     }
+                } break;
+                case BLOCK_STMT: {
+                    genBlock(node->child[0]);
                 } break;
                 case EXPR_STMT: {
                     genExpr(node->child[0], false);
@@ -298,8 +341,15 @@ class CodeGen {
                                 }
                                 if (isExprType(x, ID_EXPR)) {
                                     if (st.get(x->token.strval).type == EMPTY) {
-                                        STEntry ent; ent.type = LOCALVAR;
+                                        STEntry ent;
                                         ent.name = x->token.strval;
+                                        if (scopeIsGlobal()) {
+                                            ent.type = GLOBALVAR;
+                                            ent.location = constPool->alloc(makeNil());
+                                        } else {
+                                            ent.type = LOCALVAR;
+                                            ent.depth = scopeDepth;
+                                        }
                                         st.insert(x->token.strval, ent);
                                     } else {
                                         cout<<"A variable with name: "<<x->token.strval<<" has already been declared in this scope."<<endl;
@@ -307,7 +357,7 @@ class CodeGen {
                                 }
                             } break;
                             case FUNC_DEF_STMT: { 
-                                st.openFunctionScope(node->token.strval);
+                                openScope(node->token.strval);
                                 int na = 0;
                                 for (astnode* params = node->child[0]; params != nullptr; params = params->next) {
                                     STEntry ent; ent.type = LOCALVAR;
@@ -318,11 +368,11 @@ class CodeGen {
                                 Function* f = new Function(node->token.strval,na,0,0);
                                 Object obj;
                                 obj.type = AS_FUNC;
-                                obj.data.funcval = f;
+                                obj.data.gcobj->funcval = f;
                                 int addr = constPool->alloc(obj);
                                 buildSymbolTable(node->child[1]);
-                                constPool->get(addr).data.funcval->locals = st.numLocals()-na;
-                                st.closeScope();
+                                constPool->get(addr).data.gcobj->funcval->locals = st.numLocals()-na;
+                                closeScope();
                                 sayLess = true;
                             } break;
                             default:
@@ -339,13 +389,14 @@ class CodeGen {
             }
         }
     public:
-        CodeGen(ConstantPool* cp) {
+        CodeGen(ConstantPool* cp, Allocator* ac) {
             isSub = false;
             code= vector<ByteCodeInstruction>(255);
             labelnum = 0;
             highCI = 0;
             codeIndex = 0;
             constPool = cp;
+            alloc = ac;
         }
         vector<ByteCodeInstruction>& compile(astnode* ast) {
             if (codeIndex > 0) codeIndex--;
