@@ -6,18 +6,27 @@
 #include "stack.hpp"
 using namespace std;
 
+const int GLOBAL_SCOPE_DEPTH = -1;
+
 class Context {
     private:
+        unordered_map<string, Struct*> objects;
         unordered_map<string, Object> globals;
         IndexedStack<Scope> callStack;
         Object nilObject;
         Allocator alloc;
     public:
         Context() {
-
+            nilObject = makeNil();
         }
         IndexedStack<Scope>& getStack() {
             return callStack;
+        }
+        void addStructType(Struct* st) {
+            objects[st->typeName] = st;
+        }
+        Struct* getInstanceType(string name) {
+            return objects[name];
         }
         void openScope() {
             callStack.push(Scope());
@@ -32,13 +41,13 @@ class Context {
             }
         }
         Object& get(string name, int depth) {
-            if (depth > -1) {
+            if (depth > GLOBAL_SCOPE_DEPTH) {
                 return callStack.get(callStack.size()-1-depth).locals[name];
             }            
             return globals[name];
         }
         void put(string name, int depth, Object info) {
-            if (depth > -1) {
+            if (depth > GLOBAL_SCOPE_DEPTH) {
                 callStack.get(callStack.size()-1-depth).locals[name] = info;
             } else {
                 globals[name] = info;
@@ -60,6 +69,9 @@ class Context {
         }
         Allocator& getAlloc() {
             return alloc;
+        }
+        Object& nil() {
+            return nilObject;
         }
 };
 

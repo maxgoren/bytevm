@@ -2,9 +2,9 @@
 #define allocator_hpp
 #include <iostream>
 #include <unordered_set>
-#include "scope.hpp"
 #include "stack.hpp"
 #include "object.hpp"
+#include "scope.hpp"
 using namespace std;
 
 class Allocator {
@@ -20,6 +20,7 @@ class Allocator {
         Object makeString(string val);
         Object makeList(List* list);
         Object makeFunction(Function* func);
+        Object makeStruct(Struct* st);
         void rungc(IndexedStack<Scope>& callStack, unordered_map<string, Object>& globals);
 };
 
@@ -53,6 +54,15 @@ Object Allocator::makeFunction(Function* func) {
     return m;
 }
 
+Object Allocator::makeStruct(Struct* st) {
+    Object m; 
+    m.type = AS_STRUCT;
+    m.data.gcobj = new GCObject(st);
+    m.data.gcobj->marked = false;
+    liveObjects.insert(m.data.gcobj);
+    return m;
+}
+
 Object Allocator::makeList(List* list) {
     Object m;
     m.type = AS_LIST;
@@ -63,11 +73,11 @@ Object Allocator::makeList(List* list) {
 }
 
 void Allocator::rungc(IndexedStack<Scope>& callStack, unordered_map<string, Object>& globals) {
-    for (auto & m : globals)
-        if (isCollectable(m.second))
-            markObject(m.second);
-    mark(callStack);
-    sweep();
+    //for (auto & m : globals)
+    //    if (isCollectable(m.second))
+    //        markObject(m.second);
+//    mark(callStack);
+//    sweep();
 }
 
 void Allocator::markObject(Object& object) {

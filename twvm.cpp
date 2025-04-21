@@ -32,14 +32,13 @@ class TWVM {
         }
         Context cxt;
         IndexedStack<Object> rtStack;
-        Object nilVal;
         void push(Object info) {
             rtStack.push(info);
         }
         Object pop() {
             if (rtStack.empty()) {
                 cout<<"Error: Stack Underflow."<<endl;
-                return nilVal;
+                return cxt.nil();
             }
             return rtStack.pop();
         }
@@ -85,8 +84,23 @@ class TWVM {
             enter("[function definition statement: " + node->token.strval + "]");
             Function* func = new Function(copyTree(node->child[0]), copyTree(node->child[1]));
             func->name = node->token.strval;
+            func->freeVars = nullptr;
+            if (!cxt.getStack().empty()) {
+                for (auto fv : cxt.getStack().top().locals) {
+                    func->freeVars = new VarList(fv.first, fv.second, func->freeVars);
+                }
+            }
             Object m = cxt.getAlloc().makeFunction(func);
             cxt.insert(func->name, m);
+            leave();
+        }
+        void defineStruct(astnode* node) {
+            enter("[struct definition statement]");
+            Struct* st = new Struct(node->child[0]->token.strval);
+            for (astnode* it = node->child[1]; it != nullptr; it = it->next) {
+                st->fields[it->child[0]->token.strval] = makeNil();
+            }
+            cxt.addStructType(st);
             leave();
         }
         void blockStatement(astnode* node) {
@@ -115,6 +129,7 @@ class TWVM {
                 case TK_FALSE: push(makeBool(false)); break;
                 case TK_NUM: push(makeNumber(stod(node->token.strval))); break;
                 case TK_STR: push(cxt.getAlloc().makeString(node->token.strval)); break;
+                case TK_NIL: push(cxt.nil()); break;
                 default: 
                     break;
             }
@@ -202,21 +217,31 @@ class TWVM {
         void assignExpr(astnode* node) {
             enter("[assignment expression]");
             evalExpr(node->child[1]);
-            if (node->child[0]->token.symbol == TK_ID) {
+            if (isExprType(node->child[0], ID_EXPR)) {
                 cxt.put(node->child[0]->token.strval, node->child[0]->token.depth, pop());
-            } else {
+            } else if (isExprType(node->child[0], SUBSCRIPT_EXPR)) {
                 string id = node->child[0]->child[0]->token.strval;
                 int depth = node->child[0]->child[0]->token.depth;
-                evalExpr(node->child[0]->child[1]);
-                int idx = pop().data.intval;
-                ListNode* it = cxt.get(id, depth).data.gcobj->listval->head;
-                int i = 0;
-                while (it != nullptr && i < idx) {
-                    it = it->next;
-                    i++;
-                }
-                if (it != nullptr) {
-                    it->info = pop();
+                Object obj = cxt.get(id, depth);
+                if (obj.type == AS_LIST) {
+                    evalExpr(node->child[0]->child[1]);
+                    int idx = pop().data.intval;
+                    ListNode* it = cxt.get(id, depth).data.gcobj->listval->head;
+                    int i = 0;
+                    while (it != nullptr && i < idx) {
+                        it = it->next;
+                        i++;
+                    }
+                    if (it != nullptr)  it->info = pop();
+                } else if (obj.type == AS_STRUCT) {
+                    string fieldname = node->child[0]->child[1]->token.strval;
+                    cout<<"Assigning to field "<<fieldname<<endl;
+                    Struct* st = obj.data.gcobj->structval;
+                    if (st->fields.find(fieldname) != st->fields.end()) {
+                        st->fields[fieldname] = pop();
+                    } else {
+                        cout<<"No field named '"<<fieldname<<"' in object "<<id<<" of type "<<st->typeName<<endl;
+                    }
                 }
             }
             leave();
@@ -236,8 +261,12 @@ class TWVM {
             enter("[lambda expr]");
             Function* func = new Function(copyTree(node->child[0]), copyTree(node->child[1]));
             func->name = "(lambda)";
-            if (!cxt.getStack().empty())
-                func->freeVars = cxt.getStack().top().locals;
+            func->freeVars = nullptr;
+            if (!cxt.getStack().empty()) {
+                for (auto fv : cxt.getStack().top().locals) {
+                    func->freeVars = new VarList(fv.first, fv.second, func->freeVars);
+                }
+            }
             push(cxt.getAlloc().makeFunction(func));
             leave();
         }
@@ -255,8 +284,8 @@ class TWVM {
         }
         void funcExpression(Function* func, astnode* params) {
             enter("[Function Expression]");
-            for (auto m : func->freeVars) {
-                cxt.insert(m.first, m.second);
+            for (auto m = func->freeVars; m != nullptr; m = m->next) {
+                cxt.insert(m->key, m->m);
             }
             Scope env;
             evalFunctionArguments(params, func->params, env);
@@ -264,10 +293,10 @@ class TWVM {
             say("[Applying Function]");
             exec(func->body);
             bailout = false;
-            for (auto m : func->freeVars) {
-                func->freeVars[m.first] = cxt.get(m.first, 1);
-            }
             cxt.closeScope();
+            for (auto m = func->freeVars; m != nullptr; m = m->next) {
+                m->m = cxt.get(m->key, 0);
+            }
             leave();
         }
         void listExpression(astnode* node) {
@@ -302,7 +331,15 @@ class TWVM {
         }
         void getListSize(astnode* node) {
             evalExpr(node->child[0]);
-            push(makeInt(pop().data.gcobj->listval->count));
+            int size = 0;
+            Object m = pop();
+            if (m.type != AS_LIST) {
+                cout<<"Error: size() expects list."<<endl;
+                push(makeNil());
+                return;
+            }
+            size = m.data.gcobj->listval->count;
+            push(makeInt(size));
         }
         void getListEmpty(astnode* node) {
             evalExpr(node->child[0]);
@@ -394,17 +431,23 @@ class TWVM {
         }
         void subscriptExpression(astnode* node) {
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
-            evalExpr(node->child[1]);
-            int i = 0;
-            int indx = pop().data.intval;
-            ListNode* itr = list->head;
-            while (itr != nullptr && i < indx) {
-                i++;
-                itr = itr->next;
+            if (peek(0).type == AS_LIST) {
+                List* list = pop().data.gcobj->listval;
+                evalExpr(node->child[1]);
+                int i = 0;
+                int indx = pop().data.intval;
+                ListNode* itr = list->head;
+                while (itr != nullptr && i < indx) {
+                    i++;
+                    itr = itr->next;
+                }
+                if (itr != nullptr) push(itr->info);
+            } else if (peek(0).type == AS_STRUCT) {
+                Struct* st = pop().data.gcobj->structval;
+                evalExpr(node->child[0]);
+                string name = *(pop().data.gcobj->strval);
+                push(st->fields[name]);
             }
-            if (itr != nullptr)
-                push(itr->info);
         }
         void listComprehension(astnode* node) {
             enter("[ZF Expression]");
@@ -447,12 +490,47 @@ class TWVM {
             push(makeBool(matchre(text, pattern)));
             leave();
         }
+        void blessExpression(astnode* node) {
+            enter("[bless expr]");
+            string name = node->child[0]->token.strval;
+            Struct* st = cxt.getInstanceType(name);
+            if (st == nullptr) {
+                cout<<"No such type '"<<name<<"'"<<endl;
+                leave();
+                return;
+            } else {
+                cout<<"Bingo bango: "<<st->typeName<<endl;
+            }
+            Struct* nextInstance = new Struct(st->typeName);
+            for (auto m : st->fields) {
+                nextInstance->fields[m.first] = m.second;
+            }
+            nextInstance->blessed = true;
+            push(cxt.getAlloc().makeStruct(nextInstance));
+            leave();
+        }
+        void booleanOperation(astnode* node) {
+            if (node->token.symbol == TK_AND) {
+                evalExpr(node->child[0]);
+                if (peek(0).data.boolval) {
+                    pop();
+                    evalExpr(node->child[1]);
+                }
+            } else if (node->token.symbol == TK_OR) {
+                evalExpr(node->child[0]);
+                if (!peek(0).data.boolval) {
+                    pop();
+                    evalExpr(node->child[1]);
+                }
+            }
+        }
         void evalExpr(astnode* node) {
             if (node != nullptr) {
                 switch (node->type.expr) {
                     case UNOP_EXPR: unaryOperation(node); break;
                     case RELOP_EXPR: binaryOperation(node); break;
                     case BINOP_EXPR: binaryOperation(node); break;
+                    case LOGIC_EXPR: booleanOperation(node); break;
                     case ASSIGN_EXPR: assignExpr(node); break;
                     case CONST_EXPR: constExpr(node); break;
                     case ID_EXPR:    idExpr(node); break;
@@ -463,6 +541,7 @@ class TWVM {
                     case LAMBDA_EXPR: lambdaExpression(node); break;
                     case RANGE_EXPR:  rangeExpression(node); break;
                     case ZF_EXPR:     listComprehension(node); break;
+                    case BLESS_EXPR:  blessExpression(node); break;
                     default:
                         break;
                 }
@@ -485,6 +564,7 @@ class TWVM {
                         case FUNC_DEF_STMT: defineFunction(node); break;
                         case RETURN_STMT: returnStatement(node); break;
                         case BLOCK_STMT: blockStatement(node); break;
+                        case STRUCT_DEF_STMT: defineStruct(node); break;
                         default:
                             break;
                     }

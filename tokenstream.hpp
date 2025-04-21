@@ -20,6 +20,9 @@ class TokenStream {
             tokens = tkns;
             tpos = 0;
         }
+        void append(Token token) {
+            tokens.push_back(token);
+        }
         void start() {
             tpos = 0;
         }

@@ -1,7 +1,19 @@
-def fib(let x) {
+let cache := [ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+def fib(let x, let cache) {
 	if (x < 2) {
 		return 1;
 	}
-	return fib(x-1)+fib(x-2);
+	if (x > size(cache)) {
+			let t := size(cache) - 1;
+			while (t < x) {
+				append(cache, fib(t, cache)+fib(t-1, cache));
+				t++;
+			}
+	}
+	if (cache[x] == 0) {
+		cache[x] := fib(x-1, cache)+fib(x-2, cache);
+	}
+	return cache[x];
 }
-println fib(6);
+println fib(41, cache);
+println size(cache);

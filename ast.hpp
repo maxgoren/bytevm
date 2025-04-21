@@ -13,7 +13,7 @@ enum NodeKind {
 
 enum ExprType {
     ID_EXPR, CONST_EXPR, 
-    UNOP_EXPR, BINOP_EXPR, RELOP_EXPR, 
+    UNOP_EXPR, BINOP_EXPR, RELOP_EXPR, LOGIC_EXPR,
     REG_EXPR, LAMBDA_EXPR, FUNC_EXPR, BLESS_EXPR,
     ASSIGN_EXPR, SUBSCRIPT_EXPR, RANGE_EXPR,
     LIST_EXPR, ZF_EXPR
@@ -31,14 +31,10 @@ struct astnode {
         ExprType expr;
         StmtType stmt;
     } type;
-    struct {
-        int depth;
-    } attr;
     Token token;
     astnode* child[MAX_CHILD];
     astnode* next;
     astnode(NodeKind kind, Token t) : nk(kind), token(t), next(nullptr) { 
-        attr.depth = 0; 
         for (int i = 0; i < MAX_CHILD; i++)
             child[i] = nullptr;
     }
@@ -62,6 +58,8 @@ void preorder(astnode* expr, int d) {
                     case LIST_EXPR: cout<<"[list expr]"; break;
                     case SUBSCRIPT_EXPR: cout<<"[subscript expr]"; break;
                     case RANGE_EXPR: cout<<"[range expr]"; break;
+                    case ZF_EXPR: cout<<"[list comprehension]"; break;
+                    case BLESS_EXPR: cout<<"[bless expr]"; break;
                     default:
                         break;
                 } break;

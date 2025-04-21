@@ -88,8 +88,7 @@ void ScopeLevelResolver::resolveStatementScope(astnode* node) {
     switch (node->type.stmt) {
         case BLOCK_STMT: resolveBlockStatement(node); break;
         case FUNC_DEF_STMT: resolveDefStatement(node); break;
-        case LET_STMT: 
-            resolveLetStatement(node); break;
+        case LET_STMT:  resolveLetStatement(node); break;
         case IF_STMT:
             for (int i = 0; i < 3; i++)
                 resolve(node->child[i]);

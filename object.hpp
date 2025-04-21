@@ -8,12 +8,13 @@ using namespace std;
 
 
 enum StoreAs {
-    AS_INT, AS_REAL, AS_BOOL, AS_CHAR, AS_STRING, AS_FUNC, AS_CLOSURE, AS_LIST, AS_MAP, AS_NULL
+    AS_INT, AS_REAL, AS_BOOL, AS_CHAR, AS_STRING, AS_STRUCT, AS_FUNC, AS_CLOSURE, AS_LIST, AS_MAP, AS_NULL
 };
 
 struct List;
 struct Closure;
 struct Function;
+struct Struct;
 
 struct GCObject;
 
@@ -39,6 +40,7 @@ struct Object {
             case AS_STRING: data.gcobj = obj.data.gcobj; break;
             case AS_FUNC: data.gcobj = obj.data.gcobj; break;
             case AS_CLOSURE: data.gcobj = obj.data.gcobj; break;
+            case AS_STRUCT: data.gcobj = obj.data.gcobj; break;
             case AS_CHAR: data.charval = obj.data.charval; break;
             case AS_BOOL: data.boolval = obj.data.boolval; break;
             case AS_INT: data.intval = obj.data.intval; break;
@@ -49,6 +51,13 @@ struct Object {
     }
 };
 
+struct VarList {
+    string key;
+    Object m;
+    VarList* next;
+    VarList(string k, Object v, VarList* n) : key(k), m(v), next(n) { }
+};
+
 struct Function {
     string name;
     int args;
@@ -56,7 +65,7 @@ struct Function {
     int addr;
     astnode* body;
     astnode* params;
-    unordered_map<string, Object> freeVars;
+    VarList* freeVars;
     Function(string n, int ag, int l, int adr) : name(n), args(ag), locals(l), addr(adr) { }
     Function(astnode* par, astnode* code) : params(par), body(code) { }
     Function() {
@@ -81,8 +90,17 @@ struct List {
     }
 };
 
+struct Struct {
+    string typeName;
+    bool blessed;
+    unordered_map<string, Object> fields;
+    Struct(string tn) : typeName(tn), blessed(false) { }
+    Struct() : typeName("nil"), blessed(false) { }
+};
+
+
 enum GC_TYPE {
-    GC_LIST, GC_STRING, GC_FUNC
+    GC_LIST, GC_STRING, GC_FUNC, GC_STRUCT
 };
 
 struct GCObject {
@@ -93,12 +111,23 @@ struct GCObject {
         Function* funcval;
         List* listval;
         Closure* closureval;
+        Struct* structval;
     };
     GCObject(string* s) : strval(s), marked(false), type(GC_STRING) { }
     GCObject(string s) : strval(new string(s)), marked(false), type(GC_STRING) { }
     GCObject(List* l) : listval(l), marked(false), type(GC_LIST) { }
     GCObject(Function* f) : funcval(f), marked(false), type(GC_FUNC) { }
     GCObject(Closure* c) : closureval(c), marked(false), type(GC_FUNC) { }
+    GCObject(Struct* s) : structval(s), marked(false), type(GC_STRUCT) { }
+    GCObject(const GCObject& ob) {
+        switch (ob.type) {
+            case GC_STRING: strval = ob.strval; break;
+            case GC_LIST: listval = ob.listval; break;
+            case GC_FUNC: funcval = ob.funcval; break;
+            case GC_STRUCT: structval = ob.structval; break;
+            default: break;
+        }
+    }
 };
 
 void printGCObject(GCObject* x) {
@@ -178,6 +207,13 @@ string toString(Object obj) {
                     str += ", ";
             }
             str += " ]";
+        } break;
+        case AS_STRUCT: {
+            str = obj.data.gcobj->structval->typeName + " {";
+            for (auto m : obj.data.gcobj->structval->fields) {
+                str += m.first +": " + toString(m.second) + ", ";
+            }
+            str += "}";
         } break;
         default: break;
     }

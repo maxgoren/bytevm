@@ -24,6 +24,7 @@ class Parser {
         astnode* range();
         astnode* relOpExpression();
         astnode* equOpExpression();
+        astnode* logicOpExpression();
         astnode* expression();
         astnode* makeBlock();
         astnode* statement();
@@ -138,7 +139,8 @@ astnode* Parser::statement() {
         case TK_STRUCT: {
             node = makeStmtNode(STRUCT_DEF_STMT, current());
             match(TK_STRUCT);
-            node->child[0] = makeBlock();
+            node->child[0] = expression();
+            node->child[1] = makeBlock();
         } break;
         case TK_FUNC: {
             node = makeStmtNode(FUNC_DEF_STMT, current());
@@ -195,10 +197,23 @@ astnode* Parser::statement() {
 }
 
 astnode* Parser::expression() {
-    astnode* node = equOpExpression();
+    astnode* node = logicOpExpression();
     while (expect(TK_ASSIGN)) {
         astnode* t = makeExprNode(ASSIGN_EXPR, current());
         match(TK_ASSIGN);
+        t->child[0] = node;
+        t->child[1] = logicOpExpression();
+        node = t;
+    }
+    
+    return node;
+}
+
+astnode* Parser::logicOpExpression() {
+    astnode* node = equOpExpression();
+    while (expect(TK_AND) || expect(TK_OR)) {
+        astnode* t = makeExprNode(LOGIC_EXPR, current());
+        match(lookahead());
         t->child[0] = node;
         t->child[1] = equOpExpression();
         node = t;
@@ -383,7 +398,7 @@ astnode* Parser::primary() {
     } else if (expect(TK_BLESS)) {
         node = makeExprNode(BLESS_EXPR, current());
         match(TK_BLESS);
-        node->child[0] = makeBlock();
+        node->child[0] = primary();
     }
     return node;
 }

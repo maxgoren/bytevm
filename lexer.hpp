@@ -103,7 +103,6 @@ class Lexer {
             switch (sb.get()) {
                 case '%': return Token(TK_MOD, "%");
                 case '/': return Token(TK_DIV, "/");
-                case '|': return Token(TK_PIPE, "|");
                 case '(': return Token(TK_LP, "(");
                 case ')': return Token(TK_RP, ")");
                 case '{': return Token(TK_LC, "{");
@@ -121,6 +120,14 @@ class Lexer {
                 }
                 sb.rewind();
                 return Token(TK_ADD, "+");
+            }
+            if (sb.get() == '|') {
+                sb.advance();
+                if (sb.get() == '|') {
+                    return Token(TK_OR, "||");
+                }
+                sb.rewind();
+                return Token(TK_PIPE, "|");
             }
             if (sb.get() == '*') {
                 sb.advance();
@@ -191,6 +198,8 @@ class Lexer {
                 sb.advance();
                 if (sb.get() == '(') {
                     return Token(TK_LAMBDA, "&(");
+                } else if (sb.get() == '&') {
+                    return Token(TK_AND, "&&");
                 }
                 sb.rewind();
                 return Token(TK_AMPER, "&");
@@ -202,23 +211,23 @@ class Lexer {
 
         }
         TokenStream lex(StringBuffer sb) {
-            vector<Token> tokens;
+            TokenStream ts;
             while (!sb.done()) {
                 skipWhiteSpace(sb);
                 skipComments(sb);
                 if (isdigit(sb.get())) {
-                    tokens.push_back(extractNumber(sb));
+                    ts.append(extractNumber(sb));
                 } else if (isalpha(sb.get())) {
-                    tokens.push_back(extractId(sb));
+                    ts.append(extractId(sb));
                 } else if (sb.get() == '"') {
-                    tokens.push_back(extractString(sb));
+                    ts.append(extractString(sb));
                 } else {
-                    tokens.push_back(checkSpecials(sb));
+                    ts.append(checkSpecials(sb));
                     sb.advance();
                 }
             }
-            tokens.push_back(Token(TK_EOI, "<fin.>"));
-            return TokenStream(tokens);
+            ts.append(Token(TK_EOI, "<fin.>"));
+            return ts;
         }
 };
 

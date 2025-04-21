@@ -7,8 +7,7 @@ using namespace std;
 
 struct Scope {
     unordered_map<string, Object> locals;
-    Scope* enclosing;
-    Scope(Scope* parent = nullptr) : enclosing(parent) { }
+    Scope() { }
 };
 
 
