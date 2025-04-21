@@ -48,7 +48,7 @@ class Lexer {
         Token extractId(StringBuffer& sb) {
             string id;
             while (!sb.done()) {
-                if (isalpha(sb.get()) || isdigit(sb.get())) {
+                if (isalpha(sb.get()) || isdigit(sb.get()) || sb.get() == '_') {
                     id.push_back(sb.get());
                     sb.advance();
                 } else break;
@@ -97,6 +97,7 @@ class Lexer {
             if (id == "false")   return Token(TK_FALSE, "false");
             if (id == "matchre") return Token(TK_MATCHRE, "matchre");
             if (id == "bless")   return Token(TK_BLESS, "bless");
+            if (id == "sort")    return Token(TK_SORT, "sort");
             return Token(TK_ID, id);
         }
         Token checkSpecials(StringBuffer& sb) {
@@ -217,7 +218,7 @@ class Lexer {
                 skipComments(sb);
                 if (isdigit(sb.get())) {
                     ts.append(extractNumber(sb));
-                } else if (isalpha(sb.get())) {
+                } else if (isalpha(sb.get()) || sb.get() == '_') {
                     ts.append(extractId(sb));
                 } else if (sb.get() == '"') {
                     ts.append(extractString(sb));

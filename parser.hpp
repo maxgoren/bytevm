@@ -362,7 +362,7 @@ astnode* Parser::primary() {
         node->child[0] = paramList();
         inListConstructor = false;
         match(TK_RB);
-    } else if (expect(TK_APPEND) || expect(TK_PUSH) || expect(TK_MAP) || expect(TK_FILTER) || expect(TK_REDUCE)) {
+    } else if (expect(TK_APPEND) || expect(TK_PUSH) || expect(TK_MAP) || expect(TK_FILTER) || expect(TK_REDUCE) || expect(TK_SORT)) {
         node = makeExprNode(LIST_EXPR, current());
         match(lookahead());
         match(TK_LP);

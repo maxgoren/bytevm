@@ -248,7 +248,12 @@ class TWVM {
         }
         void functionCall(astnode* node) {
             enter("[Function call]");
-            Object m = cxt.get(node->child[0]->token.strval, node->child[0]->token.depth);
+            Object m;
+            if (node->child[0]->token.strval == "_rc") {
+                m = cxt.getStack().top().locals["_rc"];
+            } else { 
+                m = cxt.get(node->child[0]->token.strval, node->child[0]->token.depth);
+            }
             if (m.type != AS_FUNC) {
                 cout<<"Couldn't find function named: "<<node->child[0]->token.strval<<endl;
                 return;
@@ -290,6 +295,7 @@ class TWVM {
             Scope env;
             evalFunctionArguments(params, func->params, env);
             cxt.openScope(env);
+            cxt.insert("_rc", cxt.getAlloc().makeFunction(func));
             say("[Applying Function]");
             exec(func->body);
             bailout = false;
@@ -312,6 +318,7 @@ class TWVM {
                 case TK_MAP:    doMap(node);break;
                 case TK_FILTER: doFilter(node); break;
                 case TK_REDUCE: doReduce(node); break;
+                case TK_SORT: doSort(node); break;
                 default:
                     break;
             }
@@ -420,6 +427,9 @@ class TWVM {
             }
             push(result);
             leave();
+        }
+        void doSort(astnode* node) {
+            
         }
         void makeAnonymousList(astnode* node) { 
             List* list = new List();
