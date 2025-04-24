@@ -246,11 +246,38 @@ class TWVM {
             }
             leave();
         }
+        void subscriptExpression(astnode* node) {
+            evalExpr(node->child[0]);
+            if (peek(0).type == AS_LIST) {
+                List* list = pop().data.gcobj->listval;
+                evalExpr(node->child[1]);
+                int i = 0;
+                int indx = pop().data.intval;
+                ListNode* itr = list->head;
+                while (itr != nullptr && i < indx) {
+                    i++;
+                    itr = itr->next;
+                }
+                if (itr != nullptr) push(itr->info);
+            } else if (peek(0).type == AS_STRUCT) {
+                Struct* st = pop().data.gcobj->structval;
+                string name = node->child[1]->token.strval;
+                if (st->fields.find(name) == st->fields.end()) {
+                    cout<<"Object doesnt have field '"<<name<<"'"<<endl;
+                    return;
+                }
+                push(st->fields[name]);
+            }
+        }
         void functionCall(astnode* node) {
             enter("[Function call]");
             Object m;
             if (node->child[0]->token.strval == "_rc") {
-                m = cxt.getStack().top().locals["_rc"];
+                if (!cxt.getStack().empty()) {
+                    m = cxt.getStack().top().locals["_rc"];
+                } else {
+                    cout<<"Current scope is in the wrong context to re-call."<<endl;
+                }
             } else { 
                 m = cxt.get(node->child[0]->token.strval, node->child[0]->token.depth);
             }
@@ -438,26 +465,6 @@ class TWVM {
                 list = appendList(list, pop());
             }
             push(cxt.getAlloc().makeList(list));
-        }
-        void subscriptExpression(astnode* node) {
-            evalExpr(node->child[0]);
-            if (peek(0).type == AS_LIST) {
-                List* list = pop().data.gcobj->listval;
-                evalExpr(node->child[1]);
-                int i = 0;
-                int indx = pop().data.intval;
-                ListNode* itr = list->head;
-                while (itr != nullptr && i < indx) {
-                    i++;
-                    itr = itr->next;
-                }
-                if (itr != nullptr) push(itr->info);
-            } else if (peek(0).type == AS_STRUCT) {
-                Struct* st = pop().data.gcobj->structval;
-                evalExpr(node->child[0]);
-                string name = *(pop().data.gcobj->strval);
-                push(st->fields[name]);
-            }
         }
         void listComprehension(astnode* node) {
             enter("[ZF Expression]");

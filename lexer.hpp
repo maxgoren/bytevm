@@ -1,6 +1,7 @@
 #ifndef lexer_hpp
 #define lexer_hpp
 #include <vector>
+#include <unordered_map>
 #include "token.hpp"
 #include "tokenstream.hpp"
 #include "stringbuffer.hpp"
@@ -8,6 +9,7 @@ using namespace std;
 
 class Lexer {
     private:
+        unordered_map<string, Token> reserved;
         void skipWhiteSpace(StringBuffer& sb) {
             while (!sb.done()) {
                 if (sb.get() == ' ' || sb.get() == '\t' || sb.get() == '\r') {
@@ -72,32 +74,8 @@ class Lexer {
             return Token(TK_STR, str);
         }
         Token checkReserved(string id) {
-            if (id == "if")      return Token(TK_IF, "if");
-            if (id == "else")    return Token(TK_ELSE, "else");
-            if (id == "let")     return Token(TK_LET, "let");
-            if (id == "var")     return Token(TK_LET, "var");
-            if (id == "print")   return Token(TK_PRINT, "print");
-            if (id == "println") return Token(TK_PRINTLN, "println");
-            if (id == "return")  return Token(TK_RETURN, "return");
-            if (id == "while")   return Token(TK_WHILE, "while");
-            if (id == "func")    return Token(TK_FUNC, "func");
-            if (id == "def")     return Token(TK_FUNC, "def");
-            if (id == "struct")  return Token(TK_STRUCT, "struct");
-            if (id == "push")    return Token(TK_PUSH, "push");
-            if (id == "append")  return Token(TK_APPEND, "append"); 
-            if (id == "size")    return Token(TK_SIZE, "size");
-            if (id == "empty")   return Token(TK_EMPTY, "empty");
-            if (id == "first")   return Token(TK_FIRST, "first");
-            if (id == "rest")    return Token(TK_REST, "rest");
-            if (id == "map")     return Token(TK_MAP, "map");
-            if (id == "filter")  return Token(TK_FILTER, "filter");
-            if (id == "reduce")  return Token(TK_REDUCE, "reduce");
-            if (id == "nil")     return Token(TK_NIL, "nil");
-            if (id == "true")    return Token(TK_TRUE, "true");
-            if (id == "false")   return Token(TK_FALSE, "false");
-            if (id == "matchre") return Token(TK_MATCHRE, "matchre");
-            if (id == "bless")   return Token(TK_BLESS, "bless");
-            if (id == "sort")    return Token(TK_SORT, "sort");
+            if (reserved.find(id) != reserved.end())
+                return reserved.at(id);
             return Token(TK_ID, id);
         }
         Token checkSpecials(StringBuffer& sb) {
@@ -209,7 +187,32 @@ class Lexer {
         }
     public:
         Lexer() {
-
+            reserved["if"] = Token(TK_IF, "if");
+            reserved["let"] = Token(TK_LET, "let");
+            reserved["var"] = Token(TK_LET, "var");
+            reserved["def"] = Token(TK_FUNC, "def");
+            reserved["map"] = Token(TK_MAP, "map");
+            reserved["nil"] = Token(TK_NIL, "nil");
+            reserved["else"] = Token(TK_ELSE, "else");
+            reserved["func"] = Token(TK_FUNC, "func");
+            reserved["push"] = Token(TK_PUSH, "push");
+            reserved["size"] = Token(TK_SIZE, "size");
+            reserved["sort"] = Token(TK_SORT, "sort");
+            reserved["rest"] = Token(TK_REST, "rest");
+            reserved["true"] = Token(TK_TRUE, "true");
+            reserved["while"] = Token(TK_WHILE, "while");
+            reserved["empty"] = Token(TK_EMPTY, "empty");
+            reserved["first"] = Token(TK_FIRST, "first");
+            reserved["print"] = Token(TK_PRINT, "print");
+            reserved["false"] = Token(TK_FALSE, "false");
+            reserved["bless"] = Token(TK_BLESS, "bless");
+            reserved["return"] = Token(TK_RETURN, "return");
+            reserved["struct"] = Token(TK_STRUCT, "struct");
+            reserved["append"] = Token(TK_APPEND, "append"); 
+            reserved["filter"] = Token(TK_FILTER, "filter");
+            reserved["reduce"] = Token(TK_REDUCE, "reduce");
+            reserved["matchre"] = Token(TK_MATCHRE, "matchre");
+            reserved["println"] = Token(TK_PRINTLN, "println");
         }
         TokenStream lex(StringBuffer sb) {
             TokenStream ts;
