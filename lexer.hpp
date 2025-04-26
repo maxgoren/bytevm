@@ -82,6 +82,7 @@ class Lexer {
             switch (sb.get()) {
                 case '%': return Token(TK_MOD, "%");
                 case '/': return Token(TK_DIV, "/");
+                case '?': return Token(TK_QM, "?");
                 case '(': return Token(TK_LP, "(");
                 case ')': return Token(TK_RP, ")");
                 case '{': return Token(TK_LC, "{");
@@ -192,6 +193,7 @@ class Lexer {
             reserved["var"] = Token(TK_LET, "var");
             reserved["def"] = Token(TK_FUNC, "def");
             reserved["map"] = Token(TK_MAP, "map");
+            reserved["ref"] = Token(TK_REF, "ref");
             reserved["nil"] = Token(TK_NIL, "nil");
             reserved["else"] = Token(TK_ELSE, "else");
             reserved["func"] = Token(TK_FUNC, "func");

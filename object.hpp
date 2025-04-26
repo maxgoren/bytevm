@@ -130,6 +130,38 @@ struct GCObject {
     }
 };
 
+bool getBoolean(Object m) {
+    return m.data.boolval;
+}
+
+int getInteger(Object m) {
+    return m.data.intval;
+}
+
+int getReal(Object m) {
+    return m.data.realval;
+}
+
+char getChar(Object m) {
+    return m.data.charval;
+}
+
+List* getList(Object m) {
+    return m.data.gcobj->listval;
+}
+
+Function* getFunction(Object m) {
+    return m.data.gcobj->funcval;
+}
+
+string* getString(Object m) {
+    return m.data.gcobj->strval;
+}
+
+Struct* getStruct(Object m) {
+    return m.data.gcobj->structval;
+}
+
 void printGCObject(GCObject* x) {
     switch (x->type) {
         case GC_FUNC:   cout<<x->funcval->name<<endl; break;

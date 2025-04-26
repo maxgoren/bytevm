@@ -198,14 +198,26 @@ astnode* Parser::statement() {
 
 astnode* Parser::expression() {
     astnode* node = logicOpExpression();
-    while (expect(TK_ASSIGN)) {
-        astnode* t = makeExprNode(ASSIGN_EXPR, current());
-        match(TK_ASSIGN);
-        t->child[0] = node;
-        t->child[1] = logicOpExpression();
-        node = t;
+    switch (lookahead()) {
+        case TK_ASSIGN: {
+            astnode* t = makeExprNode(ASSIGN_EXPR, current());
+            match(TK_ASSIGN);
+            t->child[0] = node;
+            t->child[1] = expression();
+            node = t;
+        } break;
+        case TK_QM: {
+            astnode* t = makeExprNode(TERNARY_EXPR, current());
+            match(TK_QM);
+            t->child[0] = node;
+            t->child[1] = expression();
+            match(TK_COLON);
+            t->child[2] = expression();
+            node = t;
+        } break;
+        default:
+            break;
     }
-    
     return node;
 }
 
@@ -362,7 +374,7 @@ astnode* Parser::primary() {
         node->child[0] = paramList();
         inListConstructor = false;
         match(TK_RB);
-    } else if (expect(TK_APPEND) || expect(TK_PUSH) || expect(TK_MAP) || expect(TK_FILTER) || expect(TK_REDUCE) || expect(TK_SORT)) {
+    } else if (expect(TK_APPEND) || expect(TK_PUSH) || expect(TK_MAP) || expect(TK_FILTER) || expect(TK_REDUCE)) {
         node = makeExprNode(LIST_EXPR, current());
         match(lookahead());
         match(TK_LP);
@@ -375,6 +387,16 @@ astnode* Parser::primary() {
         match(lookahead());
         match(TK_LP);
         node->child[0] = expression();
+        match(TK_RP);
+    } else if (expect(TK_SORT)) {
+        node = makeExprNode(LIST_EXPR, current());
+        match(lookahead());
+        match(TK_LP);
+        node->child[0] = expression();
+        if (expect(TK_COMA)) {
+            match(TK_COMA);
+            node->child[1] = expression();
+        }
         match(TK_RP);
     } else if (expect(TK_MATCHRE)) {
         node = makeExprNode(REG_EXPR, current());

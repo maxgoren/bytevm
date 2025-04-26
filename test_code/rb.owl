@@ -1,0 +1,77 @@
+{* 2-3-4 Red/Black Tree. *}
+struct node { var key; var color; var left; var right; }
+def init(var tree, var key) {
+    tree := bless node; 
+    tree[key] := key; 
+    tree[color] := true;
+    return tree;
+}
+def isRed(var tree) {
+    if (tree == nil) {
+        return false;
+    }
+    return tree[color];
+}
+def rotL(var h) {
+    println "rotateLeft";
+    var x := h[right];
+    h[right] := x[left];
+    x[left] := h;
+    x[color] := h[color];
+    h[color] := true;
+    return x;
+}
+def rotR(var h) {
+    println "rotateRight";
+    var x := h[left];
+    h[left] := x[right];
+    x[right] := h
+    x[color] := h[color];
+    h[color] := true;
+    return x;
+} 
+def put(var tree, var key) { 
+    if (tree == nil) { 
+        return init(tree,key); 
+    } 
+    if (isRed(tree[right]) && isRed(tree[left])) {
+        println "colorFlip";
+        tree[color] := true;
+        tree[left][color] := false;
+        tree[right][color] := false;
+    }
+    if (key < tree[key]) { 
+        tree[left] := put(tree[left], key);  
+    } else { 
+        tree[right] := put(tree[right], key); 
+    } 
+    if (isRed(tree[right]) && isRed(tree[right][left])) { tree[right] := rotR(tree[right]); }
+    if (isRed(tree[right]) && isRed(tree[right][right])) { tree := rotL(tree); }
+    if (isRed(tree[left]) && isRed(tree[left][right])) { tree[left] := rotL(tree[left]); }
+    if (isRed(tree[left]) && isRed(tree[left][left])) { tree := rotR(tree); }
+    return tree; 
+}
+def inorder(var tree) { 
+    if (tree != nil) { 
+        inorder(tree[left]); 
+        println tree[key]; 
+        inorder(tree[right]); 
+    } 
+}
+def preorder(var tree) { 
+    if (tree != nil) { 
+        print tree[key] + " "; 
+        preorder(tree[left]); 
+        preorder(tree[right]); 
+    } 
+}
+let root := nil;
+let ins := "asearchingexample";
+let i := 0;
+while (i < size(ins)) {
+    root := put(root, ins[i]);
+    root[color] := false;
+    i++;
+}
+preorder(root);
+println " ";

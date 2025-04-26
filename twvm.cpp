@@ -49,7 +49,7 @@ class TWVM {
         void letStatement(astnode* node) {
             enter("[let statement]");
             string id = node->child[0]->child[0]->token.strval;
-            cout<<id<<endl;
+            //cout<<id<<endl;
             evalExpr(node->child[0]);
             leave();
         }
@@ -194,6 +194,7 @@ class TWVM {
             if (node->token.symbol == TK_ADD && (typeOf(lhs) == AS_STRING || typeOf(rhs) == AS_STRING)) {
                 string newstr = toString(lhs) + toString(rhs);
                 push(cxt.getAlloc().makeString(newstr));
+                leave();
                 return;
             }
             switch (node->token.symbol) {
@@ -216,40 +217,61 @@ class TWVM {
         }
         void assignExpr(astnode* node) {
             enter("[assignment expression]");
-            evalExpr(node->child[1]);
             if (isExprType(node->child[0], ID_EXPR)) {
+                evalExpr(node->child[1]);
                 cxt.put(node->child[0]->token.strval, node->child[0]->token.depth, pop());
             } else if (isExprType(node->child[0], SUBSCRIPT_EXPR)) {
-                string id = node->child[0]->child[0]->token.strval;
-                int depth = node->child[0]->child[0]->token.depth;
-                Object obj = cxt.get(id, depth);
-                if (obj.type == AS_LIST) {
-                    evalExpr(node->child[0]->child[1]);
-                    int idx = pop().data.intval;
-                    ListNode* it = cxt.get(id, depth).data.gcobj->listval->head;
-                    int i = 0;
-                    while (it != nullptr && i < idx) {
-                        it = it->next;
-                        i++;
-                    }
-                    if (it != nullptr)  it->info = pop();
-                } else if (obj.type == AS_STRUCT) {
-                    string fieldname = node->child[0]->child[1]->token.strval;
-                    cout<<"Assigning to field "<<fieldname<<endl;
-                    Struct* st = obj.data.gcobj->structval;
-                    if (st->fields.find(fieldname) != st->fields.end()) {
-                        st->fields[fieldname] = pop();
-                    } else {
-                        cout<<"No field named '"<<fieldname<<"' in object "<<id<<" of type "<<st->typeName<<endl;
-                    }
-                }
+                subscriptAssignment(node);
             }
             leave();
+        }
+        void subscriptAssignment(astnode* node) {
+            astnode* tnode = node->child[0];
+            evalExpr(tnode->child[0]);
+            if (peek(0).type == AS_LIST) {
+                List* list = getList(pop());
+                evalExpr(tnode->child[1]);
+                int pos = 0;
+                int indx = pop().data.intval;
+                ListNode* itr = list->head;
+                while (itr != nullptr && pos < indx) {
+                    pos++;
+                    itr = itr->next;
+                }
+                evalExpr(node->child[1]);
+                if (itr != nullptr) itr->info = pop();
+            } else if (peek(0).type == AS_STRUCT) {
+                Struct* st = getStruct(pop());
+                string name = tnode->child[1]->token.strval;
+                say("Assigning to field " + name);
+                if (st->fields.find(name) == st->fields.end()) {
+                    cout<<"Object doesnt have field '"<<name<<"'"<<endl;
+                    return;
+                }
+                evalExpr(node->child[1]);
+                st->fields[name] = pop();
+            } else if (peek(0).type == AS_STRING) {
+                Object strObj = pop();
+                string* str = getString(strObj);
+                evalExpr(tnode->child[1]);
+                int indx = getInteger(pop());
+                if (indx < 0 || indx > str->length()) {
+                    cout<<"Index out of range: "<<indx<<endl;
+                    return;
+                }
+                string back = str->substr(indx+1);
+                string front = str->substr(0, indx);
+                evalExpr(node->child[1]);
+                string toins = *getString(pop());
+                str = new string(front+toins+back);
+                strObj.data.gcobj->strval = str;
+                push(strObj);
+            }
         }
         void subscriptExpression(astnode* node) {
             evalExpr(node->child[0]);
             if (peek(0).type == AS_LIST) {
-                List* list = pop().data.gcobj->listval;
+                List* list = getList(pop());
                 evalExpr(node->child[1]);
                 int i = 0;
                 int indx = pop().data.intval;
@@ -260,19 +282,34 @@ class TWVM {
                 }
                 if (itr != nullptr) push(itr->info);
             } else if (peek(0).type == AS_STRUCT) {
-                Struct* st = pop().data.gcobj->structval;
+                Struct* st = getStruct(pop());
                 string name = node->child[1]->token.strval;
                 if (st->fields.find(name) == st->fields.end()) {
                     cout<<"Object doesnt have field '"<<name<<"'"<<endl;
                     return;
                 }
                 push(st->fields[name]);
+            } else if (peek(0).type == AS_STRING) {
+                string* str = getString(pop());
+                evalExpr(node->child[1]);
+                int indx = getInteger(pop());
+                if (indx < 0 || indx > str->length()) {
+                    cout<<"Index out of range: "<<indx<<endl;
+                    return;
+                }
+                char c = str->at(indx);
+                string tmp;
+                tmp.push_back(c);
+                push(cxt.getAlloc().makeString(tmp));
             }
         }
         void functionCall(astnode* node) {
             enter("[Function call]");
             Object m;
-            if (node->child[0]->token.strval == "_rc") {
+            if (isExprType(node->child[0], LAMBDA_EXPR)) {
+                evalExpr(node->child[0]);
+                m = pop();
+            } else if (node->child[0]->token.strval == "_rc") {
                 if (!cxt.getStack().empty()) {
                     m = cxt.getStack().top().locals["_rc"];
                 } else {
@@ -353,13 +390,13 @@ class TWVM {
         }
         void doAppendList(astnode* node) {
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
+            List* list = getList(pop());
             evalExpr(node->child[1]);
             list = appendList(list, pop());
         }
         void doPushList(astnode* node) {
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
+            List* list = getList(pop());
             evalExpr(node->child[1]);
             list = pushList(list, pop());
         }
@@ -367,26 +404,29 @@ class TWVM {
             evalExpr(node->child[0]);
             int size = 0;
             Object m = pop();
-            if (m.type != AS_LIST) {
-                cout<<"Error: size() expects list."<<endl;
+            if (m.type != AS_LIST && m.type != AS_STRING) {
+                cout<<"Error: incorrect type supplied to size()."<<endl;
                 push(makeNil());
                 return;
             }
-            size = m.data.gcobj->listval->count;
+            switch (m.type) {
+                case AS_LIST: size = m.data.gcobj->listval->count; break;
+                case AS_STRING: size = m.data.gcobj->strval->size(); break;
+                default: break;
+            }
             push(makeInt(size));
         }
         void getListEmpty(astnode* node) {
             evalExpr(node->child[0]);
-            push(makeBool(pop().data.gcobj->listval->head == nullptr));
+            push(makeBool(getList(pop())->head == nullptr));
         }
         void getFirstListElement(astnode* node) {
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
-            push(list->head->info);
+            push(getList(pop())->head->info);
         }
         void getRestOfList(astnode* node) {
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
+            List* list = getList(pop());
             List* nl = new List();
             for (ListNode* it = list->head->next; it != nullptr; it = it->next)
                 nl = appendList(nl, it->info);
@@ -408,9 +448,9 @@ class TWVM {
         void doMap(astnode* node) {
             enter("[ Map ]");
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
+            List* list = getList(pop());
             evalExpr(node->child[1]);
-            Function* func = pop().data.gcobj->funcval;
+            Function* func = getFunction(pop());
             List* result = new List();
             for (ListNode* it = list->head; it != nullptr; it = it->next) {
                 astnode* t = makeExprNode(CONST_EXPR, Token(getSymbol(it->info), toString(it->info)));
@@ -423,9 +463,9 @@ class TWVM {
         void doFilter(astnode* node) {
             enter("[ Filter ]");
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
+            List* list = getList(pop());
             evalExpr(node->child[1]);
-            Function* func = pop().data.gcobj->funcval;
+            Function* func = getFunction(pop());
             List* result = new List();
             for (ListNode* it = list->head; it != nullptr; it = it->next) {
                 astnode* t = makeExprNode(CONST_EXPR, Token(getSymbol(it->info), toString(it->info)));
@@ -439,9 +479,9 @@ class TWVM {
         void doReduce(astnode* node) {
             enter("[ Reduce ]");
             evalExpr(node->child[0]);
-            List* list = pop().data.gcobj->listval;
+            List* list = getList(pop());
             evalExpr(node->child[1]);
-            Function* func = pop().data.gcobj->funcval;
+            Function* func = getFunction(pop());
             ListNode* it = list->head; 
             Object result = it->info;
             it = it->next;
@@ -455,8 +495,61 @@ class TWVM {
             push(result);
             leave();
         }
+        ListNode* mergesort(ListNode* head, Function* cmplambda) {
+            if (head == nullptr || head->next == nullptr)
+                return head;
+            ListNode* fast = head->next;
+            ListNode* slow = head;
+            while (fast != nullptr && fast->next != nullptr) {
+                slow = slow->next;
+                fast = fast->next->next;
+            }
+            ListNode* back = slow->next;
+            slow->next = nullptr;
+            head = mergesort(head, cmplambda);
+            back = mergesort(back, cmplambda);
+            ListNode d; ListNode* c = &d;
+            while (head != nullptr && back != nullptr) {
+                if (cmplambda != nullptr) {
+                    astnode* t = makeExprNode(CONST_EXPR, Token(getSymbol(head->info), toString(head->info)));
+                    t->next = makeExprNode(CONST_EXPR, Token(getSymbol(back->info), toString(back->info)));
+                    funcExpression(cmplambda, t);
+                } else {
+                    push(gt(back->info, head->info));
+                }
+                Object result = pop();
+                if (result.data.boolval) {
+                    c->next = head; head = head->next; c = c->next;
+                } else {
+                    c->next = back; back = back->next; c = c->next;
+                }
+            }
+            c->next = (head == nullptr) ? back:head;
+            head = d.next;
+            return head;
+        }
         void doSort(astnode* node) {
-            
+            enter("[sort]");
+            evalExpr(node->child[0]);
+            Object listObj = pop();
+            if (listObj.type != AS_LIST) {
+                cout<<"Error: sort expects a list"<<endl;
+                return;
+            }
+            Function* cmp = nullptr;
+            if (node->child[1] != nullptr) {
+                evalExpr(node->child[1]);
+                cmp = getFunction(pop());
+            }
+            List* list = listObj.data.gcobj->listval;
+            if (!listEmpty(list)) {
+                list->head = mergesort(list->head, cmp);
+                ListNode* x = list->head;
+                while (x->next != nullptr) x = x->next;
+                list->tail = x;
+            }
+            push(listObj);
+            leave();
         }
         void makeAnonymousList(astnode* node) { 
             List* list = new List();
@@ -475,13 +568,13 @@ class TWVM {
                 return;
             }
             evalExpr(node->child[1]);
-            Function* func = pop().data.gcobj->funcval;
+            Function* func = getFunction(pop());
             Function* pred = nullptr;
             if (node->child[2] != nullptr) {
                 evalExpr(node->child[2]);
-                pred = pop().data.gcobj->funcval;
+                pred = getFunction(pop());
             }
-            List* list = listobj.data.gcobj->listval;
+            List* list = getList(listobj);
             List* result = new List();
             for (ListNode* it = list->head; it != nullptr; it = it->next) {
                 astnode* t = makeExprNode(CONST_EXPR, Token(getSymbol(it->info), toString(it->info)));
@@ -501,9 +594,9 @@ class TWVM {
         void regularExpression(astnode* node) {
             enter("[regular expr]");
             evalExpr(node->child[0]);
-            string text = *pop().data.gcobj->strval;
+            string text = *getString(pop());
             evalExpr(node->child[1]);
-            string pattern = *pop().data.gcobj->strval;
+            string pattern = *getString(pop());
             push(makeBool(matchre(text, pattern)));
             leave();
         }
@@ -516,7 +609,7 @@ class TWVM {
                 leave();
                 return;
             } else {
-                cout<<"Bingo bango: "<<st->typeName<<endl;
+                say("Instantiating object " + name + " as type " + st->typeName);
             }
             Struct* nextInstance = new Struct(st->typeName);
             for (auto m : st->fields) {
@@ -541,12 +634,18 @@ class TWVM {
                 }
             }
         }
+        void ternaryConditional(astnode* node) {
+            evalExpr(node->child[0]);
+            if   (getBoolean(pop())) evalExpr(node->child[1]);
+            else evalExpr(node->child[2]);
+        }
         void evalExpr(astnode* node) {
             if (node != nullptr) {
                 switch (node->type.expr) {
                     case UNOP_EXPR: unaryOperation(node); break;
                     case RELOP_EXPR: binaryOperation(node); break;
                     case BINOP_EXPR: binaryOperation(node); break;
+                    case TERNARY_EXPR: ternaryConditional(node); break;
                     case LOGIC_EXPR: booleanOperation(node); break;
                     case ASSIGN_EXPR: assignExpr(node); break;
                     case CONST_EXPR: constExpr(node); break;
@@ -564,6 +663,21 @@ class TWVM {
                 }
             }
         }
+        void evalStmt(astnode* node) {
+            switch (node->type.stmt) {
+                case LET_STMT: letStatement(node); break;
+                case IF_STMT:  ifStatement(node); break;
+                case WHILE_STMT: whileStatement(node); break;
+                case PRINT_STMT: printStatement(node); break;
+                case EXPR_STMT: expressionStatement(node); break;
+                case FUNC_DEF_STMT: defineFunction(node); break;
+                case RETURN_STMT: returnStatement(node); break;
+                case BLOCK_STMT: blockStatement(node); break;
+                case STRUCT_DEF_STMT: defineStruct(node); break;
+                default:
+                    break;
+            }
+        }
     public:
         TWVM(bool debug = false) {
             loud = debug;
@@ -572,19 +686,7 @@ class TWVM {
         void exec(astnode* node) {
             if (node != nullptr) {
                 if (node->nk == STMT_NODE) {
-                    switch (node->type.stmt) {
-                        case LET_STMT: letStatement(node); break;
-                        case IF_STMT:  ifStatement(node); break;
-                        case WHILE_STMT: whileStatement(node); break;
-                        case PRINT_STMT: printStatement(node); break;
-                        case EXPR_STMT: expressionStatement(node); break;
-                        case FUNC_DEF_STMT: defineFunction(node); break;
-                        case RETURN_STMT: returnStatement(node); break;
-                        case BLOCK_STMT: blockStatement(node); break;
-                        case STRUCT_DEF_STMT: defineStruct(node); break;
-                        default:
-                            break;
-                    }
+                    evalStmt(node);
                 } else {
                     evalExpr(node);
                 }
@@ -592,12 +694,18 @@ class TWVM {
                     exec(node->next);
             }
         }
+        Context& context() {
+            return cxt;
+        }
 };
 
 void runScript(string filename) {
     ASTBuilder astbuilder;
-    TWVM vm(true);
+    TWVM vm(false);
     vm.exec(astbuilder.buildFromFile(filename));
+    if (vm.context().existsInScope("main")) {
+        vm.exec(astbuilder.build("main();"));
+    }
 }
 
 
@@ -606,8 +714,9 @@ void repl() {
     string input;
     ASTBuilder astbuilder;
     TWVM vm(true);
+    int i = 1;
     while (running) {
-        cout<<"meh> ";
+        cout<<"OwlScriptSV("<<i++<<")> ";
         getline(cin, input);
         if (input == "quit") {
             running = false;
