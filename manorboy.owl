@@ -17,7 +17,7 @@ def A(var k, var x1, var x2, var x3, var x4, var x5) {
 }
 
 let i := 0;
-while (i <= 3) {
+while (i <= 10) {
     println "Man or Boy? " + i;
     println A(i, C(1), C(-1), C(-1), C(1), C(0));
     i := i + 1;

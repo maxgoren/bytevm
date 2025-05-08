@@ -15,6 +15,14 @@ class Context {
         IndexedStack<Scope*> callStack;
         Object nilObject;
         Allocator alloc;
+        Scope* ancestor(int distance) {
+            Scope* curr = callStack.top();
+            while (distance > 0 && curr != nullptr) {
+                curr = curr->enclosing;
+                distance--;
+            }
+            return curr;
+        }
     public:
         Context() {
             globals = new Scope(nullptr);
@@ -43,32 +51,14 @@ class Context {
             }
         }
         Object& get(string name, int depth) {
-            if (depth > GLOBAL_SCOPE_DEPTH) {
-                Scope* curr = callStack.get(callStack.size()-1-depth);
-                if (curr != nullptr) {
-                    if (curr->bindings.find(name) != curr->bindings.end()) {
-                        return curr->bindings[name];
-                    } else if (curr->enclosing != nullptr && curr->enclosing->bindings.find(name) != curr->enclosing->bindings.end()) {
-                        cout<<"Went with enclosing on get"<<endl;
-                        return curr->enclosing->bindings[name];
-                    }
-                }
-                return nilObject;
-            }          
-            return globals->bindings[name];
+           if (depth == -1) {
+                return globals->bindings[name];
+           }
+           return ancestor(depth)->bindings[name];
         }
         void put(string name, int depth, Object info) {
             if (depth > GLOBAL_SCOPE_DEPTH) {
-                Scope* curr = callStack.get(callStack.size()-1-depth);
-                if (curr->bindings.find(name) != curr->bindings.end()) {
-                    curr->bindings[name] = info;
-                } else if (curr->enclosing != nullptr && curr->enclosing->bindings.find(name) != curr->enclosing->bindings.end()) {
-                    cout<<"Went with enclosing on put."<<endl;
-                    curr->enclosing->bindings[name] = info;
-                } else {
-                    cout<<"Adding new binding: "<<name<<" - "<<toString(info)<<endl;
-                    curr->bindings.emplace(name, info);
-                }
+               ancestor(depth)->bindings[name] = info;
             } else {
                 globals->bindings[name] = info;
             }
