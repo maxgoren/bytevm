@@ -66,6 +66,9 @@ void ScopeLevelResolver::resolveExpressionScope(astnode* node) {
             resolve(node->child[0]);
             resolve(node->child[1]);
         } break;
+        case REF_EXPR: {
+            resolve(node->child[0]); 
+        } break;
         case LAMBDA_EXPR: {
             openScope();
             for (auto it = node->child[0]; it != nullptr; it = it->next) {
@@ -134,8 +137,13 @@ void ScopeLevelResolver::resolveDefStatement(astnode* node) {
     defineVarName(node->token.strval);
     openScope();
     for (auto it = node->child[0]; it != nullptr; it = it->next) {
-        declareVarName(it->token.strval);
-        defineVarName(it->token.strval);
+        if (isExprType(it, REF_EXPR)) {
+            declareVarName(it->child[0]->token.strval);
+            defineVarName(it->child[0]->token.strval);
+        } else {
+            declareVarName(it->token.strval);
+            defineVarName(it->token.strval);
+        }
     }
     resolve(node->child[1]);
     closeScope();

@@ -103,13 +103,26 @@ astnode* Parser::paramList() {
 }
 
 astnode* Parser::argList() {
+    astnode* node = nullptr;
     match(TK_LET);
-    astnode* node = expression();
+    if (expect(TK_REF)) {
+        node = makeExprNode(REF_EXPR, current());
+        match(TK_REF);
+        node->child[0] = expression();
+    } else {
+        node = expression();
+    }
     astnode* c = node;
     while (expect(TK_COMA)) {
         match(TK_COMA);
         match(TK_LET);
-        c->next = expression();
+        if (expect(TK_REF)) {
+            c->next = makeExprNode(REF_EXPR, current());
+            match(TK_REF);
+            c->next->child[0] = expression();
+        } else {
+            c->next = expression();
+        }
         c = c->next;
     }
     return node;
@@ -148,7 +161,9 @@ astnode* Parser::statement() {
             node->token = current();
             match(TK_ID);
             match(TK_LP);
-            node->child[0] = argList();
+            if (!expect(TK_RP)) {
+                node->child[0] = argList();
+            }
             match(TK_RP);
             node->child[1] = makeBlock();
         } break;

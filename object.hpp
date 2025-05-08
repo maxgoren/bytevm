@@ -8,14 +8,15 @@ using namespace std;
 
 
 enum StoreAs {
-    AS_INT, AS_REAL, AS_BOOL, AS_CHAR, AS_STRING, AS_STRUCT, AS_FUNC, AS_CLOSURE, AS_LIST, AS_MAP, AS_NULL
+    AS_INT, AS_REAL, AS_BOOL, AS_CHAR, AS_STRING, AS_STRUCT, AS_FUNC, AS_CLOSURE, AS_LIST, AS_MAP, AS_REF, AS_NULL
 };
 
 struct List;
 struct Closure;
 struct Function;
 struct Struct;
-
+struct WeakRef;
+struct Scope;
 struct GCObject;
 
 struct Object {
@@ -27,11 +28,13 @@ struct Object {
         bool boolval;
         char charval;
         GCObject* gcobj;
+        WeakRef* reference;
     } data;
     Object(char val) { type = AS_CHAR; data.charval = val; marked = false; }
     Object(double val) { type = AS_REAL; data.realval = val; marked = false; }
     Object(bool val) { type = AS_BOOL; data.boolval = val; marked = false; }
     Object(int val) { type = AS_INT; data.intval = val; marked = false; }
+    Object(WeakRef* obj) { type = AS_REF; data.reference = obj; marked = false; }
     Object() { type = AS_NULL; data.intval = 0; marked = false; }
     Object(const Object& obj) {
         type = obj.type;
@@ -66,11 +69,13 @@ struct Function {
     astnode* body;
     astnode* params;
     VarList* freeVars;
+    Scope* closure;
     Function(string n, int ag, int l, int adr) : name(n), args(ag), locals(l), addr(adr) { }
-    Function(astnode* par, astnode* code) : params(par), body(code) { }
+    Function(astnode* par, astnode* code) : params(par), body(code), closure(nullptr) { }
     Function() {
         args = 0; locals = 0; addr = 0;
         name = "nil";
+        closure = nullptr;
     }
 };
 
@@ -96,6 +101,12 @@ struct Struct {
     unordered_map<string, Object> fields;
     Struct(string tn) : typeName(tn), blessed(false) { }
     Struct() : typeName("nil"), blessed(false) { }
+};
+
+struct WeakRef {
+    string identifier;
+    int scopelevel;
+    WeakRef(string id, int sl) : identifier(id), scopelevel(sl) { }
 };
 
 
@@ -160,6 +171,10 @@ string* getString(Object m) {
 
 Struct* getStruct(Object m) {
     return m.data.gcobj->structval;
+}
+
+WeakRef* getReference(Object m) {
+    return m.data.reference;
 }
 
 void printGCObject(GCObject* x) {
@@ -230,6 +245,7 @@ string toString(Object obj) {
         case AS_BOOL:   str = obj.data.boolval ? "true":"false"; break;
         case AS_STRING: str = *(obj.data.gcobj->strval); break;
         case AS_FUNC:   str = obj.data.gcobj->funcval->name; break;
+        case AS_REF:    str = "<" + obj.data.reference->identifier + ">"; break;
         case AS_NULL:   str = "(null)"; break;
         case AS_LIST: {
             str = "[ ";
@@ -295,7 +311,7 @@ Object makeInt(int val) {
 Object makeReal(double val) {
     Object m;
     if (std::floor(val) == val) {
-        m.type = AS_INT;
+        m.type = AS_INT; 
         m.data.intval = (int)val;
         return m;
     }
@@ -310,6 +326,10 @@ Object makeNumber(double val) {
 
 Object makeBool(bool val) {
     return Object(val);
+}
+
+Object makeReference(string id, int scope) {
+    return Object(new WeakRef(id, scope));
 }
 
 Object makeNil() {

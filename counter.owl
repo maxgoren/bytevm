@@ -1,0 +1,13 @@
+def counter() {
+   var i := 0;
+   def count() {
+	i := i + 1;
+	return i;
+   }
+   return count;
+}
+let q := counter();
+println q();
+println q();
+println q() + q();
+println q();

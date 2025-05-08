@@ -1,0 +1,16 @@
+def makeCounter() {
+	let idx := 0;
+	let count := &() {
+		idx := idx + 1;
+		return idx;
+	}
+	return count;
+}
+def main() {
+	let c := makeCounter();
+	let i := 1;
+	while (i < 8) {
+		println c();
+		i := i * 2;
+	}
+}

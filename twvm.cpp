@@ -47,14 +47,14 @@ class TWVM {
         }
         /* statement handlers */
         void letStatement(astnode* node) {
-            enter("[let statement]");
+          //  enter("[let statement]");
             string id = node->child[0]->child[0]->token.strval;
             //cout<<id<<endl;
             evalExpr(node->child[0]);
             leave();
         }
         void ifStatement(astnode* node) {
-            enter("[if statement]");
+          //  enter("[if statement]");
             evalExpr(node->child[0]);
             if (pop().data.boolval) {
                 exec(node->child[1]);
@@ -64,7 +64,7 @@ class TWVM {
             leave();
         }
         void whileStatement(astnode* node) {
-            enter("[while statement]");
+           // enter("[while statement]");
             evalExpr(node->child[0]);
             while (pop().data.boolval) {
                 exec(node->child[1]);
@@ -73,7 +73,7 @@ class TWVM {
             leave();
         }
         void printStatement(astnode* node) {
-            enter("[print statement]");
+           // enter("[print statement]");
             evalExpr(node->child[0]);
             cout<<toString(pop());
             if (node->token.symbol == TK_PRINTLN)
@@ -81,21 +81,22 @@ class TWVM {
             leave();
         }
         void defineFunction(astnode* node) {
-            enter("[function definition statement: " + node->token.strval + "]");
-            Function* func = new Function(copyTree(node->child[0]), copyTree(node->child[1]));
+           // enter("[function definition statement: " + node->token.strval + "]");
+            Function* func = new Function(node->child[0], node->child[1]);
             func->name = node->token.strval;
             func->freeVars = nullptr;
-            if (!cxt.getStack().empty()) {
-                for (auto fv : cxt.getStack().top().locals) {
+            /*if (!cxt.getStack().empty()) {
+                for (auto fv : cxt.getStack().top()->bindings) {
                     func->freeVars = new VarList(fv.first, fv.second, func->freeVars);
-                }
-            }
+                }*/
+                func->closure = cxt.getStack().top();
+            //}
             Object m = cxt.getAlloc().makeFunction(func);
             cxt.insert(func->name, m);
             leave();
         }
         void defineStruct(astnode* node) {
-            enter("[struct definition statement]");
+           // enter("[struct definition statement]");
             Struct* st = new Struct(node->child[0]->token.strval);
             for (astnode* it = node->child[1]; it != nullptr; it = it->next) {
                 st->fields[it->child[0]->token.strval] = makeNil();
@@ -104,30 +105,46 @@ class TWVM {
             leave();
         }
         void blockStatement(astnode* node) {
-            enter("[block statement]");
+           // enter("[block statement]");
             cxt.openScope();
             exec(node->child[0]);
             cxt.closeScope();
             leave();
         }
         void expressionStatement(astnode* node) {
-            enter("[expression statement]");
+           // enter("[expression statement]");
             evalExpr(node->child[0]);
             leave();
         }
         void returnStatement(astnode* node) {
-            enter("[return statement]");
+            //enter("[return statement]");
             evalExpr(node->child[0]);
             bailout = true;
             leave();
         }
         /* Expression Handlers */
+        Object resolveFunction(astnode* node) {
+            Object m;
+            if (isExprType(node->child[0], LAMBDA_EXPR)) {
+                evalExpr(node->child[0]);
+                m = pop();
+            } else if (node->child[0]->token.strval == "_rc") {
+                if (!cxt.getStack().empty()) {
+                    m = cxt.getStack().top()->bindings["_rc"];
+                } else {
+                    cout<<"Current scope is in the wrong context to re-call."<<endl;
+                }
+            } else { 
+                m = cxt.get(node->child[0]->token.strval, node->child[0]->token.depth);
+            }
+            return m;
+        }
         void constExpr(astnode* node) {
-            enter("[const expression - (" + node->token.strval + ")]");
+           // enter("[const expression - (" + node->token.strval + ")]");
             switch (node->token.symbol) {
                 case TK_TRUE: push(makeBool(true)); break;
                 case TK_FALSE: push(makeBool(false)); break;
-                case TK_NUM: push(makeNumber(stod(node->token.strval))); break;
+                case TK_NUM: push(makeNumber(stoi(node->token.strval))); break;
                 case TK_STR: push(cxt.getAlloc().makeString(node->token.strval)); break;
                 case TK_NIL: push(cxt.nil()); break;
                 default: 
@@ -153,12 +170,12 @@ class TWVM {
             push(cxt.getAlloc().makeList(nl));
         }
         void idExpr(astnode* node) {
-            enter("[id expression: " + node->token.strval + ", scope depth: " + to_string(node->token.depth) + "]");
+           // enter("[id expression: " + node->token.strval + ", scope depth: " + to_string(node->token.depth) + "]");
             push(cxt.get(node->token.strval, node->token.depth));
             leave();
         }
         void unaryOperation(astnode* node) {
-            enter("[unary operation]");
+           // enter("[unary operation]");
             evalExpr(node->child[0]);
             switch (node->token.symbol) {
                 case TK_NOT: push(makeBool(!pop().data.boolval)); break;
@@ -186,7 +203,7 @@ class TWVM {
             leave();
         }
         void binaryOperation(astnode* node) {
-            enter("[binary operation (" + node->token.strval + ")]");
+           // enter("[binary operation (" + node->token.strval + ")]");
             evalExpr(node->child[0]);
             evalExpr(node->child[1]);
             Object rhs = pop();
@@ -216,7 +233,7 @@ class TWVM {
             leave();
         }
         void assignExpr(astnode* node) {
-            enter("[assignment expression]");
+           // enter("[assignment expression]");
             if (isExprType(node->child[0], ID_EXPR)) {
                 evalExpr(node->child[1]);
                 cxt.put(node->child[0]->token.strval, node->child[0]->token.depth, pop());
@@ -304,20 +321,8 @@ class TWVM {
             }
         }
         void functionCall(astnode* node) {
-            enter("[Function call]");
-            Object m;
-            if (isExprType(node->child[0], LAMBDA_EXPR)) {
-                evalExpr(node->child[0]);
-                m = pop();
-            } else if (node->child[0]->token.strval == "_rc") {
-                if (!cxt.getStack().empty()) {
-                    m = cxt.getStack().top().locals["_rc"];
-                } else {
-                    cout<<"Current scope is in the wrong context to re-call."<<endl;
-                }
-            } else { 
-                m = cxt.get(node->child[0]->token.strval, node->child[0]->token.depth);
-            }
+            //enter("[Function call]");
+            Object m = resolveFunction(node);
             if (m.type != AS_FUNC) {
                 cout<<"Couldn't find function named: "<<node->child[0]->token.strval<<endl;
                 return;
@@ -327,24 +332,30 @@ class TWVM {
             leave();
         }
         void lambdaExpression(astnode* node) {
-            enter("[lambda expr]");
-            Function* func = new Function(copyTree(node->child[0]), copyTree(node->child[1]));
+            //enter("[lambda expr]");
+            Function* func = new Function(node->child[0], node->child[1]);
             func->name = "(lambda)";
             func->freeVars = nullptr;
-            if (!cxt.getStack().empty()) {
-                for (auto fv : cxt.getStack().top().locals) {
+            /*if (!cxt.getStack().empty()) {
+                for (auto fv : cxt.getStack().top()->bindings) {
                     func->freeVars = new VarList(fv.first, fv.second, func->freeVars);
-                }
-            }
+                }*/
+            func->closure = cxt.getStack().top();
+            //}
             push(cxt.getAlloc().makeFunction(func));
             leave();
         }
-        void evalFunctionArguments(astnode* args, astnode* params, Scope& env) {
+        void evalFunctionArguments(astnode* args, astnode* params, Scope*& env) {
             say("[Evaluating Arguments]");
             int i = 0;
             while (params != nullptr && args != nullptr) {
-                evalExpr(args);
-                env.locals[params->token.strval] = pop();
+                if (isExprType(params, REF_EXPR)) {
+                    say("Making Reference to " + args->token.strval + " at depth " + to_string(args->token.depth));
+                    env->bindings[params->child[0]->token.strval] = makeReference(args->token.strval, args->token.depth);
+                } else {
+                    evalExpr(args);
+                    env->bindings[params->token.strval] = pop();
+                }
                 params = params->next;
                 args = args->next;
                 i++;
@@ -353,10 +364,10 @@ class TWVM {
         }
         void funcExpression(Function* func, astnode* params) {
             enter("[Function Expression]");
-            for (auto m = func->freeVars; m != nullptr; m = m->next) {
-                cxt.insert(m->key, m->m);
-            }
-            Scope env;
+            /*for (auto it = func->freeVars; it != nullptr; it = it->next) {
+                cxt.insert(it->key, it->m);
+            }*/
+            Scope* env = new Scope(func->closure);
             evalFunctionArguments(params, func->params, env);
             cxt.openScope(env);
             cxt.insert("_rc", cxt.getAlloc().makeFunction(func));
@@ -364,9 +375,9 @@ class TWVM {
             exec(func->body);
             bailout = false;
             cxt.closeScope();
-            for (auto m = func->freeVars; m != nullptr; m = m->next) {
-                m->m = cxt.get(m->key, 0);
-            }
+            /*for (auto it = func->freeVars; it != nullptr; it = it->next) {
+                it->m = cxt.getStack().top()->bindings[it->key];
+            }*/
             leave();
         }
         void listExpression(astnode* node) {
@@ -639,6 +650,15 @@ class TWVM {
             if   (getBoolean(pop())) evalExpr(node->child[1]);
             else evalExpr(node->child[2]);
         }
+        void referenceExpression(astnode* node) {
+            evalExpr(node->child[0]);
+            Object pointedAt = pop();
+            if (typeOf(pointedAt) == AS_REF) {
+                Object deref = cxt.get(pointedAt.data.reference->identifier, pointedAt.data.reference->scopelevel);
+                cout<<"De referenced "<<toString(deref)<<" from "<<toString(pointedAt)<<endl;
+                push(deref);
+            }
+        }
         void evalExpr(astnode* node) {
             if (node != nullptr) {
                 switch (node->type.expr) {
@@ -654,6 +674,7 @@ class TWVM {
                     case LIST_EXPR:  listExpression(node); break;
                     case SUBSCRIPT_EXPR: subscriptExpression(node); break;
                     case REG_EXPR:   regularExpression(node); break;
+                    case REF_EXPR:   referenceExpression(node); break;
                     case LAMBDA_EXPR: lambdaExpression(node); break;
                     case RANGE_EXPR:  rangeExpression(node); break;
                     case ZF_EXPR:     listComprehension(node); break;

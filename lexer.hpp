@@ -191,9 +191,9 @@ class Lexer {
             reserved["if"] = Token(TK_IF, "if");
             reserved["let"] = Token(TK_LET, "let");
             reserved["var"] = Token(TK_LET, "var");
+            reserved["ref"] = Token(TK_REF, "ref");
             reserved["def"] = Token(TK_FUNC, "def");
             reserved["map"] = Token(TK_MAP, "map");
-            reserved["ref"] = Token(TK_REF, "ref");
             reserved["nil"] = Token(TK_NIL, "nil");
             reserved["else"] = Token(TK_ELSE, "else");
             reserved["func"] = Token(TK_FUNC, "func");

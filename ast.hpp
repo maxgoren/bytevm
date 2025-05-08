@@ -14,7 +14,7 @@ enum NodeKind {
 enum ExprType {
     ID_EXPR, CONST_EXPR, 
     UNOP_EXPR, BINOP_EXPR, RELOP_EXPR, LOGIC_EXPR,
-    REG_EXPR, LAMBDA_EXPR, FUNC_EXPR, BLESS_EXPR,
+    REG_EXPR, REF_EXPR, LAMBDA_EXPR, FUNC_EXPR, BLESS_EXPR,
     ASSIGN_EXPR, SUBSCRIPT_EXPR, RANGE_EXPR,
     LIST_EXPR, ZF_EXPR, TERNARY_EXPR
 };
@@ -57,7 +57,8 @@ void preorder(astnode* expr, int d) {
                     case FUNC_EXPR:    cout<<"[func expr]"; break;
                     case ASSIGN_EXPR:  cout<<"[assign expr]"; break;
                     case LAMBDA_EXPR:  cout<<"[lambda expr]"; break;
-                    case REG_EXPR:     cout<<"[regular expr]";
+                    case REG_EXPR:     cout<<"[regular expr]"; break;
+                    case REF_EXPR:     cout<<"[reference expr]"; break;
                     case LIST_EXPR:    cout<<"[list expr]"; break;
                     case RANGE_EXPR:   cout<<"[range expr]"; break;
                     case ZF_EXPR:      cout<<"[list comprehension]"; break;

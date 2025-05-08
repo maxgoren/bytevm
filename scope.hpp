@@ -6,8 +6,15 @@
 using namespace std;
 
 struct Scope {
-    unordered_map<string, Object> locals;
-    Scope() { }
+    unordered_map<string, Object> bindings;
+    Scope* enclosing;
+    bool captured;
+    Scope(Scope* parent = nullptr) : enclosing(parent) { 
+        captured = false;
+        if (enclosing != nullptr) {
+            enclosing->captured = true;
+        }
+    }
 };
 
 

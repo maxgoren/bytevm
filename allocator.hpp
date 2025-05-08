@@ -12,7 +12,7 @@ class Allocator {
         unordered_set<GCObject*> liveObjects;
         bool isCollectable(Object& m);
         void markObject(Object& obj);
-        void mark(IndexedStack<Scope>& callStack);
+        void mark(IndexedStack<Scope*>& callStack);
         void sweep();
         void destroyList(List* list);
         void destroyObject(GCObject* obj);
@@ -21,7 +21,7 @@ class Allocator {
         Object makeList(List* list);
         Object makeFunction(Function* func);
         Object makeStruct(Struct* st);
-        void rungc(IndexedStack<Scope>& callStack, unordered_map<string, Object>& globals);
+        void rungc(IndexedStack<Scope*>& callStack);
 };
 
 bool Allocator::isCollectable(Object& m) {
@@ -41,7 +41,7 @@ Object Allocator::makeString(string val) {
     m.type = AS_STRING;
     m.data.gcobj = new GCObject(new string(val));   
     m.data.gcobj->marked = false;
-    liveObjects.insert(m.data.gcobj);
+    //liveObjects.insert(m.data.gcobj);
     return m;
 }
 
@@ -50,7 +50,7 @@ Object Allocator::makeFunction(Function* func) {
     m.type = AS_FUNC;
     m.data.gcobj = new GCObject(func);
     m.data.gcobj->marked = false;
-    liveObjects.insert(m.data.gcobj);
+    //liveObjects.insert(m.data.gcobj);
     return m;
 }
 
@@ -59,7 +59,7 @@ Object Allocator::makeStruct(Struct* st) {
     m.type = AS_STRUCT;
     m.data.gcobj = new GCObject(st);
     m.data.gcobj->marked = false;
-    liveObjects.insert(m.data.gcobj);
+    //liveObjects.insert(m.data.gcobj);
     return m;
 }
 
@@ -68,16 +68,13 @@ Object Allocator::makeList(List* list) {
     m.type = AS_LIST;
     m.data.gcobj = new GCObject(list);
     m.data.gcobj->marked = false;
-    liveObjects.insert(m.data.gcobj);
+    //liveObjects.insert(m.data.gcobj);
     return m;
 }
 
-void Allocator::rungc(IndexedStack<Scope>& callStack, unordered_map<string, Object>& globals) {
-    //for (auto & m : globals)
-    //    if (isCollectable(m.second))
-    //        markObject(m.second);
-//    mark(callStack);
-//    sweep();
+void Allocator::rungc(IndexedStack<Scope*>& callStack) {
+    //mark(callStack);
+    //sweep();
 }
 
 void Allocator::markObject(Object& object) {
@@ -90,9 +87,9 @@ void Allocator::markObject(Object& object) {
     }
 }
 
-void Allocator::mark(IndexedStack<Scope>& callStack) {
+void Allocator::mark(IndexedStack<Scope*>& callStack) {
     for (int i = callStack.size() - 1; i >= 0; i--) {
-        for (auto & m : callStack.get(i).locals) {
+        for (auto & m : callStack.get(i)->bindings) {
             if (isCollectable(m.second)) {
                 markObject(m.second);
             }
