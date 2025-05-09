@@ -47,6 +47,8 @@ class Context {
         void closeScope() {
             if (callStack.size() > 1) {
                 callStack.pop();
+            }
+            if (callStack.size() < 3) {
                 alloc.rungc(callStack);
             }
         }

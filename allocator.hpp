@@ -41,7 +41,7 @@ Object Allocator::makeString(string val) {
     m.type = AS_STRING;
     m.data.gcobj = new GCObject(new string(val));   
     m.data.gcobj->marked = false;
-    //liveObjects.insert(m.data.gcobj);
+    liveObjects.insert(m.data.gcobj);
     return m;
 }
 
@@ -50,7 +50,7 @@ Object Allocator::makeFunction(Function* func) {
     m.type = AS_FUNC;
     m.data.gcobj = new GCObject(func);
     m.data.gcobj->marked = false;
-    //liveObjects.insert(m.data.gcobj);
+    liveObjects.insert(m.data.gcobj);
     return m;
 }
 
@@ -59,7 +59,7 @@ Object Allocator::makeStruct(Struct* st) {
     m.type = AS_STRUCT;
     m.data.gcobj = new GCObject(st);
     m.data.gcobj->marked = false;
-    //liveObjects.insert(m.data.gcobj);
+    liveObjects.insert(m.data.gcobj);
     return m;
 }
 
@@ -68,13 +68,13 @@ Object Allocator::makeList(List* list) {
     m.type = AS_LIST;
     m.data.gcobj = new GCObject(list);
     m.data.gcobj->marked = false;
-    //liveObjects.insert(m.data.gcobj);
+    liveObjects.insert(m.data.gcobj);
     return m;
 }
 
 void Allocator::rungc(IndexedStack<Scope*>& callStack) {
-    //mark(callStack);
-    //sweep();
+    mark(callStack);
+    sweep();
 }
 
 void Allocator::markObject(Object& object) {
@@ -88,10 +88,17 @@ void Allocator::markObject(Object& object) {
 }
 
 void Allocator::mark(IndexedStack<Scope*>& callStack) {
-    for (int i = callStack.size() - 1; i >= 0; i--) {
+    for (int i = callStack.size() - 1; i > 0; i--) {
         for (auto & m : callStack.get(i)->bindings) {
             if (isCollectable(m.second)) {
                 markObject(m.second);
+            }
+            Scope* x = callStack.get(i)->enclosing;
+            while (x != nullptr && x->enclosing != nullptr) {
+                for (auto m : x->bindings) {
+                    if (isCollectable(m.second))
+                        markObject(m.second);
+                }
             }
         }
     }
@@ -112,8 +119,9 @@ void Allocator::destroyObject(GCObject* x) {
         case GC_FUNC:   {  } break;
         case GC_LIST:   { destroyList(x->listval); } break;
         case GC_STRING: { delete x->strval; } break;
+        case GC_STRUCT: { } break;
     }
-    delete x;
+    //delete x;
 }
 
 void Allocator::sweep() {
@@ -124,9 +132,10 @@ void Allocator::sweep() {
             auto x = m;
             cout<<"Collecting: "<<x<<" - ";
             switch (x->type) {
-                case GC_FUNC:   cout<<x->funcval->name<<endl; break;
-                case GC_LIST:   cout<<"(list)"<<endl; break;
-                case GC_STRING: cout<<*x->strval<<endl; break;
+                case GC_FUNC:   cout<<"(func) "<<x->funcval->name<<endl; break;
+                case GC_LIST:   cout<<"(list) "<<endl; break;
+                case GC_STRING: cout<<"(string) "<<*x->strval<<endl; break;
+                case GC_STRUCT: cout<<"(class) "<<x->structval->typeName<<endl; break;
             }
             kill.insert(x);
         } else {
