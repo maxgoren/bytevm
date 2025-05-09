@@ -153,7 +153,8 @@ void ScopeLevelResolver::resolveVariableDepth(astnode* node, string id) {
     for (int i = scopes.size() - 1; i >= 0; i--) {
         if (scopes.get(i).find(id) != scopes.get(i).end()) {
             node->token.depth = scopes.size() - 1 - i;
-            cout<<"Resolve: "<<id<<" at nest depth "<<node->token.depth<<endl;
+            if (loud)
+                cout<<"Resolve: "<<id<<" at nest depth "<<node->token.depth<<endl;
             return;
         }
     }
@@ -175,14 +176,17 @@ void ScopeLevelResolver::declareVarName(string id) {
         cout<<"That name already exists in this scope."<<endl;
         return;
     }
-    cout<<"Declare: "<<id<<" (scope: "<<scopes.size()<<")"<<endl;
+    if (loud)
+        cout<<"Declare: "<<id<<" (scope: "<<scopes.size()<<")"<<endl;
     scopes.top()[id] = false;
 }
 
 void ScopeLevelResolver::defineVarName(string id) {
     if (scopes.empty())
         return;
-    cout<<"Define: "<<id<<" (scope: "<<scopes.size()<<")"<<endl;
+    
+    if (loud)
+        cout<<"Define: "<<id<<" (scope: "<<scopes.size()<<")"<<endl;
     scopes.top()[id] = true;
 }
 

@@ -15,7 +15,7 @@ class Context {
         IndexedStack<Scope*> callStack;
         Object nilObject;
         Allocator alloc;
-        Scope* ancestor(int distance) {
+        Scope* enclosingAt(int distance) {
             Scope* curr = callStack.top();
             while (distance > 0 && curr != nullptr) {
                 curr = curr->enclosing;
@@ -51,20 +51,19 @@ class Context {
             }
         }
         Object& get(string name, int depth) {
-           if (depth == -1) {
+           if (depth == GLOBAL_SCOPE_DEPTH) {
                 return globals->bindings[name];
            }
-           return ancestor(depth)->bindings[name];
+           return enclosingAt(depth)->bindings[name];
         }
         void put(string name, int depth, Object info) {
-            if (depth > GLOBAL_SCOPE_DEPTH) {
-               ancestor(depth)->bindings[name] = info;
-            } else {
+            if (depth == GLOBAL_SCOPE_DEPTH) {
                 globals->bindings[name] = info;
+            } else {
+                enclosingAt(depth)->bindings[name] = info;
             }
         }
         void insert(string name, Object info) {
-            //callStack.top()->bindings.emplace(name,info);           
             callStack.top()->bindings[name] = info;
         }
         bool existsInScope(string name) {

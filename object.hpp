@@ -54,13 +54,6 @@ struct Object {
     }
 };
 
-struct VarList {
-    string key;
-    Object m;
-    VarList* next;
-    VarList(string k, Object v, VarList* n) : key(k), m(v), next(n) { }
-};
-
 struct Function {
     string name;
     int args;
@@ -68,7 +61,6 @@ struct Function {
     int addr;
     astnode* body;
     astnode* params;
-    VarList* freeVars;
     Scope* closure;
     Function(string n, int ag, int l, int adr) : name(n), args(ag), locals(l), addr(adr) { }
     Function(astnode* par, astnode* code) : params(par), body(code), closure(nullptr) { }

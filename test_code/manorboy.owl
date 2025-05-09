@@ -1,0 +1,26 @@
+def C(var i) {
+    return &() -> i;
+}
+def A(var k, var x1, var x2, var x3, var x4, var x5) {
+    def B() {
+        k--;
+        println "Calling A() From B, k: " + k;
+        return A(k, B, x1, x2, x3, x4);
+    }
+    if (k <= 0) {
+        println "Calling x4() + x5()";
+        return x4()+x5();
+    }
+    println "Calling B() From A, k: " + k;
+    return B();
+}
+def main() {
+    let i := 0;
+    let ans := [];
+    while (i <= 10) {
+        print i + ": ";
+        append(ans, A(i, C(1), C(-1), C(-1), C(1), C(0)));
+        i := i + 1;
+    }
+    println ans;
+}
