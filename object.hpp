@@ -16,7 +16,7 @@ struct Closure;
 struct Function;
 struct Struct;
 struct WeakRef;
-struct Scope;
+struct ActivationRecord;
 struct GCObject;
 
 struct Object {
@@ -56,16 +56,11 @@ struct Object {
 
 struct Function {
     string name;
-    int args;
-    int locals;
-    int addr;
     astnode* body;
     astnode* params;
-    Scope* closure;
-    Function(string n, int ag, int l, int adr) : name(n), args(ag), locals(l), addr(adr) { }
+    ActivationRecord* closure;
     Function(astnode* par, astnode* code) : params(par), body(code), closure(nullptr) { }
     Function() {
-        args = 0; locals = 0; addr = 0;
         name = "nil";
         closure = nullptr;
     }
@@ -103,7 +98,7 @@ struct WeakRef {
 
 
 enum GC_TYPE {
-    GC_LIST, GC_STRING, GC_FUNC, GC_STRUCT
+    GC_LIST, GC_STRING, GC_FUNC, GC_STRUCT, GC_EMPTY
 };
 
 struct GCObject {
@@ -131,6 +126,7 @@ struct GCObject {
             default: break;
         }
     }
+    GCObject() : marked(false), type(GC_EMPTY) { }
 };
 
 bool getBoolean(Object m) {

@@ -63,7 +63,19 @@ class Lexer {
             while (!sb.done()) {
                 if (sb.get() == '"') 
                     break;
-                str.push_back(sb.get());
+                if (sb.get() == '\\') {
+                    sb.advance();
+                    switch (sb.get()) {
+                        case 'n': str.push_back('\n'); break;
+                        case 'r': str.push_back('\r'); break;
+                        case 't': str.push_back('\t'); break;
+                        default:
+                            str.push_back(sb.get());
+                            break;
+                    }
+                } else {
+                    str.push_back(sb.get());
+                }
                 sb.advance();
             }
             if (sb.get() == '"') {
@@ -213,6 +225,7 @@ class Lexer {
             reserved["append"] = Token(TK_APPEND, "append"); 
             reserved["filter"] = Token(TK_FILTER, "filter");
             reserved["reduce"] = Token(TK_REDUCE, "reduce");
+            reserved["typeOf"] = Token(TK_TYPEOF, "typeOf");
             reserved["matchre"] = Token(TK_MATCHRE, "matchre");
             reserved["println"] = Token(TK_PRINTLN, "println");
         }

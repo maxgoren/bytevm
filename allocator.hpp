@@ -12,23 +12,24 @@ class Allocator {
         unordered_set<GCObject*> liveObjects;
         bool isCollectable(Object& m);
         void markObject(Object& obj);
-        void mark(IndexedStack<Scope*>& callStack);
+        void mark(ActivationRecord* callStack, IndexedStack<Object>& rtStack);
         void sweep();
         void destroyList(List* list);
+        void destroyStruct(Struct* obj);
         void destroyObject(GCObject* obj);
     public:
         Object makeString(string val);
         Object makeList(List* list);
         Object makeFunction(Function* func);
         Object makeStruct(Struct* st);
-        void rungc(IndexedStack<Scope*>& callStack);
+        void rungc(ActivationRecord* callStack, IndexedStack<Object>& rtStack);
 };
 
 bool Allocator::isCollectable(Object& m) {
     switch (m.type) {
         case AS_LIST:
-        case AS_FUNC:
         case AS_STRING:
+        case AS_STRUCT:
             return true;
         default:
             break;
@@ -72,8 +73,9 @@ Object Allocator::makeList(List* list) {
     return m;
 }
 
-void Allocator::rungc(IndexedStack<Scope*>& callStack) {
-    mark(callStack);
+void Allocator::rungc(ActivationRecord* callStack, IndexedStack<Object>& rtStack) {
+    //cout<<"[GC Starting.]"<<endl;
+    mark(callStack, rtStack);
     sweep();
 }
 
@@ -84,21 +86,31 @@ void Allocator::markObject(Object& object) {
             if (isCollectable(ln->info))
                 markObject(ln->info);
         }
+    } else if (object.type == AS_STRUCT && object.data.gcobj->structval->blessed) {
+        for (auto & m : object.data.gcobj->structval->fields) {
+            if (isCollectable(m.second))
+                markObject(m.second);
+        }
     }
 }
 
-void Allocator::mark(IndexedStack<Scope*>& callStack) {
-    for (int i = callStack.size() - 1; i > 0; i--) {
-        for (auto & m : callStack.get(i)->bindings) {
+void Allocator::mark(ActivationRecord* callStack, IndexedStack<Object>& rtStack) {
+    for (int i = 0; i < rtStack.size(); i++) {
+        if (isCollectable(rtStack.get(i)))
+            markObject(rtStack.get(i));
+    }
+    for (ActivationRecord* z = callStack; z != nullptr; z = z->controlLink) {
+        for (auto & m : z->bindings) {
             if (isCollectable(m.second)) {
                 markObject(m.second);
             }
-            Scope* x = callStack.get(i)->enclosing;
-            while (x != nullptr && x->enclosing != nullptr) {
+            ActivationRecord* x = z->accessLink;
+            while (x != nullptr) {
                 for (auto m : x->bindings) {
                     if (isCollectable(m.second))
                         markObject(m.second);
                 }
+                x = x->accessLink;
             }
         }
     }
@@ -109,19 +121,28 @@ void Allocator::destroyList(List* list) {
     while (list->head != nullptr) {
         ListNode* x = list->head;
         list->head = list->head->next;
+        if (isCollectable(x->info))
+            destroyObject(x->info.data.gcobj);
         delete x;
     }
     delete list;
 }
 
+void Allocator::destroyStruct(Struct* sobj) {
+    if (sobj == nullptr) return;
+    for (auto & m : sobj->fields) {
+        if (isCollectable(m.second))
+            destroyObject(m.second.data.gcobj);
+    }
+    delete sobj;
+}
+
 void Allocator::destroyObject(GCObject* x) {
     switch (x->type) {
-        case GC_FUNC:   {  } break;
-        case GC_LIST:   { destroyList(x->listval); } break;
-        case GC_STRING: { delete x->strval; } break;
-        case GC_STRUCT: { } break;
+        case GC_STRING: { delete x->strval;  delete x; } break;
+        case GC_LIST:   { destroyList(x->listval); delete x; } break;
+        case GC_STRUCT: { destroyStruct(x->structval); delete x; } break;
     }
-    //delete x;
 }
 
 void Allocator::sweep() {
@@ -130,13 +151,6 @@ void Allocator::sweep() {
     for (auto & m : liveObjects) {
         if (m->marked == false) {
             auto x = m;
-            cout<<"Collecting: "<<x<<" - ";
-            switch (x->type) {
-                case GC_FUNC:   cout<<"(func) "<<x->funcval->name<<endl; break;
-                case GC_LIST:   cout<<"(list) "<<endl; break;
-                case GC_STRING: cout<<"(string) "<<*x->strval<<endl; break;
-                case GC_STRUCT: cout<<"(class) "<<x->structval->typeName<<endl; break;
-            }
             kill.insert(x);
         } else {
             m->marked = false;
@@ -146,9 +160,10 @@ void Allocator::sweep() {
     auto old = liveObjects;
     liveObjects = next;
     cout<<kill.size()<<" objects have become unreachable with "<<next.size()<<" remaining in scope."<<endl;
-    for (auto & m : kill) {
-        destroyObject(m);
+    for (auto & x : kill) {
+        destroyObject(x);
     }
+    //cout<<"[GC Done.]"<<endl;
 }
 
 #endif

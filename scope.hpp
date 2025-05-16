@@ -5,16 +5,13 @@
 #include "allocator.hpp"
 using namespace std;
 
-struct Scope {
-    unordered_map<string, Object> bindings;
-    Scope* enclosing;
-    bool captured;
-    Scope(Scope* parent = nullptr) : enclosing(parent) { 
-        captured = false;
-        if (enclosing != nullptr) {
-            enclosing->captured = true;
-        }
-    }
+typedef unordered_map<string, Object> Environment;
+
+struct ActivationRecord {
+    Environment bindings;
+    ActivationRecord* controlLink;
+    ActivationRecord* accessLink;
+    ActivationRecord(ActivationRecord* defining = nullptr, ActivationRecord* calling = nullptr) : accessLink(defining), controlLink(calling) { }
 };
 
 

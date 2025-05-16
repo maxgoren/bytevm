@@ -359,7 +359,7 @@ astnode* Parser::val() {
         t->child[1] = expression();
         node = t;
     }
-    if (expect(TK_LP)) {
+    while (expect(TK_LP)) {
         astnode* t = makeExprNode(FUNC_EXPR, current());
         t->child[0] = node;
         match(TK_LP);
@@ -436,6 +436,12 @@ astnode* Parser::primary() {
         node = makeExprNode(BLESS_EXPR, current());
         match(TK_BLESS);
         node->child[0] = primary();
+    } else if (expect(TK_TYPEOF)) {
+        node = makeExprNode(CONST_EXPR, current());
+        match(TK_TYPEOF);
+        match(TK_LP);
+        node->child[0] = primary();
+        match(TK_RP);
     }
     return node;
 }

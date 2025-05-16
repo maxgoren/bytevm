@@ -11,26 +11,33 @@ const int GLOBAL_SCOPE_DEPTH = -1;
 class Context {
     private:
         unordered_map<string, Struct*> objects;
-        Scope* globals;
-        IndexedStack<Scope*> callStack;
+        ActivationRecord* globals;
+        ActivationRecord* current;
         Object nilObject;
         Allocator alloc;
-        Scope* enclosingAt(int distance) {
-            Scope* curr = callStack.top();
+        IndexedStack<Object> operands;
+        ActivationRecord* enclosingAt(int distance) {
+            ActivationRecord* curr = current;
             while (distance > 0 && curr != nullptr) {
-                curr = curr->enclosing;
+                curr = curr->accessLink;
                 distance--;
+            }
+            if (distance > 0 || curr == nullptr) {
+                cout<<"Hmm... Something wrong with scope distance."<<endl;
             }
             return curr;
         }
     public:
         Context() {
-            globals = new Scope(nullptr);
+            globals = new ActivationRecord(nullptr);
+            current = globals;
             nilObject = makeNil();
-            callStack.push(globals);
         }
-        IndexedStack<Scope*>& getStack() {
-            return callStack;
+        ActivationRecord*& getStack() {
+            return current;
+        }
+        IndexedStack<Object>& getOperandStack() {
+            return operands;
         }
         void addStructType(Struct* st) {
             objects[st->typeName] = st;
@@ -39,18 +46,19 @@ class Context {
             return objects[name];
         }
         void openScope() {
-            callStack.push(new Scope(callStack.top()));
+            ActivationRecord* sf = new ActivationRecord(current, current);
+            current = sf;
         }
-        void openScope(Scope* scope) {
-            callStack.push(scope);
+        void openScope(ActivationRecord* scope) {
+            current = scope;
         }
         void closeScope() {
-            if (callStack.size() > 1) {
-                callStack.pop();
+            if (current != globals) {
+                current = current->controlLink;
             }
-            if (callStack.size() < 3) {
-                alloc.rungc(callStack);
-            }
+            if (current->controlLink == globals)
+                alloc.rungc(current, operands);
+            
         }
         Object& get(string name, int depth) {
            if (depth == GLOBAL_SCOPE_DEPTH) {
@@ -66,10 +74,10 @@ class Context {
             }
         }
         void insert(string name, Object info) {
-            callStack.top()->bindings[name] = info;
+            current->bindings[name] = info;
         }
         bool existsInScope(string name) {
-            return callStack.top()->bindings.find(name) != callStack.top()->bindings.end();
+            return current->bindings.find(name) != current->bindings.end();
         }
         Allocator& getAlloc() {
             return alloc;

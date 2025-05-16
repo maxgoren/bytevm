@@ -1,26 +1,35 @@
-def C(var i) {
+def delay(var i) {
     return &() -> i;
 }
-def A(var k, var x1, var x2, var x3, var x4, var x5) {
+let ac := 0;
+let bc := 0;
+def A(var k, var x1, var x2, var x3, var x4, var x5, var d) {
+    let i := 0;
     def B() {
         k--;
-        println "Calling A() From B, k: " + k;
-        return A(k, B, x1, x2, x3, x4);
+        {* let i := 0; while (i < d) { print "| "; i++; }
+        println "A() From B, k: " + k; *}
+        return A(k, B, x1, x2, x3, x4, d + 1);
     }
     if (k <= 0) {
-        println "Calling x4() + x5()";
-        return x4()+x5();
+        {* i := 0; while (i < d) { print "- "; i++; }
+        println "x4() + x5(), k: " + k; *}
+        return x4() + x5();
     }
-    println "Calling B() From A, k: " + k;
+    {* i := 0; while (i < d) { print "| "; i++; }
+    println "B() From A, k: " + k; *}
     return B();
 }
 def main() {
     let i := 0;
+    let t := 0;
     let ans := [];
-    while (i <= 10) {
+    while (i < 15) {
         print i + ": ";
-        append(ans, A(i, C(1), C(-1), C(-1), C(1), C(0)));
-        i := i + 1;
+        t := A(i, delay(1), delay(-1), delay(-1), delay(1), delay(0));
+        println t;
+        append(ans, t);
+        i++;
     }
     println ans;
 }
