@@ -21,7 +21,6 @@ struct GCObject;
 
 struct Object {
     StoreAs type;
-    bool marked;
     union {
         int intval;
         double realval;
@@ -30,12 +29,12 @@ struct Object {
         GCObject* gcobj;
         WeakRef* reference;
     } data;
-    Object(char val) { type = AS_CHAR; data.charval = val; marked = false; }
-    Object(double val) { type = AS_REAL; data.realval = val; marked = false; }
-    Object(bool val) { type = AS_BOOL; data.boolval = val; marked = false; }
-    Object(int val) { type = AS_INT; data.intval = val; marked = false; }
-    Object(WeakRef* obj) { type = AS_REF; data.reference = obj; marked = false; }
-    Object() { type = AS_NULL; data.intval = 0; marked = false; }
+    Object(char val) { type = AS_CHAR; data.charval = val; }
+    Object(double val) { type = AS_REAL; data.realval = val; }
+    Object(bool val) { type = AS_BOOL; data.boolval = val; }
+    Object(int val) { type = AS_INT; data.intval = val; }
+    Object(WeakRef* obj) { type = AS_REF; data.reference = obj; }
+    Object() { type = AS_NULL; data.intval = 0; }
     Object(const Object& obj) {
         type = obj.type;
         switch (type) {
@@ -145,20 +144,23 @@ char getChar(Object m) {
     return m.data.charval;
 }
 
+List dummylist;
 List* getList(Object m) {
-    return m.data.gcobj->listval;
+    return m.data.gcobj->listval == nullptr ? &dummylist:m.data.gcobj->listval;
 }
 
 Function* getFunction(Object m) {
     return m.data.gcobj->funcval;
 }
 
+string dummystring;
 string* getString(Object m) {
-    return m.data.gcobj->strval;
+    return m.data.gcobj->strval == nullptr ? &dummystring:m.data.gcobj->strval;
 }
 
+Struct dummystruct;
 Struct* getStruct(Object m) {
-    return m.data.gcobj->structval;
+    return m.data.gcobj->structval == nullptr ? &dummystruct:m.data.gcobj->structval;
 }
 
 WeakRef* getReference(Object m) {
@@ -224,6 +226,32 @@ ListNode* getListItemAt(List* list, int index) {
     return it;
 }
 
+string toString(Object m);
+
+string listToString(List* list) {
+    string str;
+    str = "[ ";
+    for (ListNode* it = list->head; it != nullptr; it = it->next) {
+        str += toString(it->info);
+        if (it->next != nullptr) 
+            str += ", ";
+    }
+    str += " ]";
+    return str;
+}
+
+string toString(GCObject* obj) {
+    string str;
+    switch (obj->type) {
+        case GC_STRING: str = *obj->strval; break;
+        case GC_LIST:   str = listToString(obj->listval); break;
+        case GC_STRUCT: str = obj->structval->typeName; break;
+        case GC_FUNC: str = obj->funcval->name; break;
+        default:
+            str = "(empty)";
+    }
+    return str;
+}
 
 string toString(Object obj) {
     string str;
@@ -236,13 +264,7 @@ string toString(Object obj) {
         case AS_REF:    str = "<" + obj.data.reference->identifier + ">"; break;
         case AS_NULL:   str = "(null)"; break;
         case AS_LIST: {
-            str = "[ ";
-            for (ListNode* it = obj.data.gcobj->listval->head; it != nullptr; it = it->next) {
-                str += toString(it->info);
-                if (it->next != nullptr) 
-                    str += ", ";
-            }
-            str += " ]";
+            str = listToString(obj.data.gcobj->listval);
         } break;
         case AS_STRUCT: {
             str = obj.data.gcobj->structval->typeName + " {";

@@ -56,7 +56,7 @@ class Context {
             if (current != globals) {
                 current = current->controlLink;
             }
-            if (current->controlLink == globals)
+            if (alloc.liveCount() > alloc.nextGC())
                 alloc.rungc(current, operands);
             
         }
@@ -71,6 +71,9 @@ class Context {
                 globals->bindings[name] = info;
             } else {
                 enclosingAt(depth)->bindings[name] = info;
+            }
+            if (alloc.liveCount() > alloc.nextGC()) {
+                alloc.rungc(current, operands);
             }
         }
         void insert(string name, Object info) {

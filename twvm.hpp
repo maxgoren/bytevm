@@ -179,7 +179,7 @@ class TWVM {
             evalExpr(node->child[0]);
             evalExpr(node->child[1]);
             if (node->token.symbol == TK_ADD && (typeOf(peek(0)) == AS_STRING || typeOf(peek(1)) == AS_STRING)) {
-                string newstr = toString(peek(0)) + toString(peek(1));
+                string newstr = toString(peek(1)) + toString(peek(0));
                 Object result = cxt.getAlloc().makeString(newstr);
                 pop(); pop();
                 push(result);
