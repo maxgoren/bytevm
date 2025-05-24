@@ -33,7 +33,7 @@ class Context {
             current = globals;
             nilObject = makeNil();
         }
-        ActivationRecord*& getStack() {
+        ActivationRecord*& getCallStack() {
             return current;
         }
         IndexedStack<Object>& getOperandStack() {
@@ -56,9 +56,9 @@ class Context {
             if (current != globals) {
                 current = current->controlLink;
             }
-            if (alloc.liveCount() > alloc.nextGC())
+            if (alloc.liveCount() > alloc.nextGC()) {
                 alloc.rungc(current, operands);
-            
+            }
         }
         Object& get(string name, int depth) {
            if (depth == GLOBAL_SCOPE_DEPTH) {

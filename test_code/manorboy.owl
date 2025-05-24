@@ -1,8 +1,6 @@
 def delay(var i) {
     return &() -> i;
 }
-let ac := 0;
-let bc := 0;
 def A(var k, var x1, var x2, var x3, var x4, var x5, var d) {
     let i := 0;
     def B() {

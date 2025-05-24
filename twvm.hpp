@@ -56,7 +56,7 @@ class TWVM {
         void defineFunction(astnode* node) {
             Function* func = new Function(copyTree(node->child[0]), copyTree(node->child[1]));
             func->name = node->token.strval;
-            func->closure = cxt.getStack();
+            func->closure = cxt.getCallStack();
             Object m = cxt.getAlloc().makeFunction(func);
             cxt.insert(func->name, m);
         }
@@ -86,8 +86,8 @@ class TWVM {
                 evalExpr(node->child[0]);
                 m = pop();
             } else if (node->child[0]->token.strval == "_rc") {
-                if (!cxt.getStack()->accessLink) {
-                    m = cxt.getStack()->bindings["_rc"];
+                if (!cxt.getCallStack()->accessLink) {
+                    m = cxt.getCallStack()->bindings["_rc"];
                 } else {
                     cout<<"Current scope is in the wrong context to re-call."<<endl;
                 }
@@ -307,7 +307,7 @@ class TWVM {
         void lambdaExpression(astnode* node) {
             Function* func = new Function(copyTree(node->child[0]), copyTree(node->child[1]));
             func->name = "(lambda)";
-            func->closure = cxt.getStack();
+            func->closure = cxt.getCallStack();
             push(cxt.getAlloc().makeFunction(func));
         }
         void evalFunctionArguments(astnode* args, astnode* params, ActivationRecord*& env) {
@@ -327,7 +327,7 @@ class TWVM {
             }
         }
         void funcExpression(Function* func, astnode* params) {
-            ActivationRecord* env = new ActivationRecord(func->closure, cxt.getStack());
+            ActivationRecord* env = new ActivationRecord(func->closure, cxt.getCallStack());
             evalFunctionArguments(params, func->params, env);
             cxt.openScope(env);
             cxt.insert("_rc", cxt.getAlloc().makeFunction(func));

@@ -150,7 +150,7 @@ List* getList(Object m) {
 }
 
 Function* getFunction(Object m) {
-    return m.data.gcobj->funcval;
+    return m.data.gcobj ? m.data.gcobj->funcval:nullptr;
 }
 
 string dummystring;

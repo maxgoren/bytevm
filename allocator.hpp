@@ -44,10 +44,11 @@ int Allocator::liveCount() {
 
 bool Allocator::isCollectable(Object& m) {
     switch (m.type) {
+        case AS_FUNC:
         case AS_LIST:
         case AS_STRING:
         case AS_STRUCT:
-            return true;
+            return m.data.gcobj != nullptr;
         default:
             break;
     }
@@ -172,6 +173,7 @@ void Allocator::destroyStruct(Struct* sobj) {
 
 void Allocator::destroyObject(GCObject* x) {
     switch (x->type) {
+        //case GC_FUNC:   { delete x->funcval; delete x; } break;
         case GC_STRING: { delete x->strval;  delete x; } break;
         case GC_LIST:   { destroyList(x->listval); delete x; } break;
         case GC_STRUCT: { destroyStruct(x->structval); delete x; } break;
@@ -192,7 +194,7 @@ void Allocator::sweep() {
     }
     auto old = liveObjects;
     liveObjects = next;
-    cout<<kill.size()<<" objects have become unreachable with "<<next.size()<<" remaining in scope."<<endl;
+    //cout<<kill.size()<<" objects have become unreachable with "<<next.size()<<" remaining in scope."<<endl;
     for (auto & x : kill) {
         destroyObject(x);
     }
